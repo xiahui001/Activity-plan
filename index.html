@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>海报生成助手</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Noto+Sans+SC:wght@400;500;700;900&display=swap"
+    rel="stylesheet"
+  />
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div class="page-shell">
+    <aside class="panel form-panel">
+      <div class="eyebrow">Poster Copilot</div>
+      <h1>海报生成助手</h1>
+      <p class="intro">
+        为活动策划快速整理文案、选风格、出海报预览，再进一步直接生成 AI 海报图。
+      </p>
+
+      <form id="poster-form">
+        <section class="form-section">
+          <div class="section-title">活动信息</div>
+          <label>
+            <span>活动名称</span>
+            <input id="title" name="title" type="text" maxlength="28" value="春日城市露营节" />
+          </label>
+          <label>
+            <span>副标题</span>
+            <input
+              id="subtitle"
+              name="subtitle"
+              type="text"
+              maxlength="40"
+              value="自然、美食、音乐，一次打包周末松弛感"
+            />
+          </label>
+          <div class="grid two-columns">
+            <label>
+              <span>日期</span>
+              <input id="date" name="date" type="text" value="2026.05.18" />
+            </label>
+            <label>
+              <span>时间</span>
+              <input id="time" name="time" type="text" value="14:00 - 20:30" />
+            </label>
+          </div>
+          <label>
+            <span>地点</span>
+            <input id="location" name="location" type="text" value="上海滨江绿地 A 区" />
+          </label>
+          <label>
+            <span>主推亮点</span>
+            <textarea id="highlights" name="highlights" rows="3">露营市集 / 乐队演出 / 手作体验 / 宠物友好</textarea>
+          </label>
+          <label>
+            <span>行动按钮</span>
+            <input id="cta" name="cta" type="text" maxlength="20" value="限时免费预约" />
+          </label>
+        </section>
+
+        <section class="form-section">
+          <div class="section-title">视觉设置</div>
+          <div class="grid two-columns">
+            <label>
+              <span>风格预设</span>
+              <select id="theme" name="theme">
+                <option value="sunset">落日露营</option>
+                <option value="neon">霓虹派对</option>
+                <option value="forest">自然市集</option>
+              </select>
+            </label>
+            <label>
+              <span>海报尺寸</span>
+              <select id="size" name="size">
+                <option value="portrait">竖版 4:5</option>
+                <option value="square">方版 1:1</option>
+                <option value="story">长版 9:16</option>
+              </select>
+            </label>
+          </div>
+          <div class="grid two-columns">
+            <label>
+              <span>主品牌色</span>
+              <input id="brand-primary" name="brand-primary" type="color" value="#ff8c61" />
+            </label>
+            <label>
+              <span>强调色</span>
+              <input id="brand-accent" name="brand-accent" type="color" value="#fff4d0" />
+            </label>
+          </div>
+          <label>
+            <span>视觉关键词</span>
+            <input
+              id="visual-keywords"
+              name="visual-keywords"
+              type="text"
+              maxlength="60"
+              value="大字标题、强氛围渐变、玻璃质感、活动现场感"
+            />
+          </label>
+        </section>
+
+        <section class="form-section">
+          <div class="section-title">传播设置</div>
+          <div class="grid two-columns">
+            <label>
+              <span>传播场景</span>
+              <select id="campaign-channel" name="campaign-channel">
+                <option value="moments" selected>朋友圈引流</option>
+                <option value="poster">活动主海报</option>
+                <option value="group">社群转发</option>
+              </select>
+            </label>
+            <label>
+              <span>主推利益点</span>
+              <input id="offer-hook" name="offer-hook" type="text" maxlength="30" value="限时预约 / 到场福利 / 名额有限" />
+            </label>
+          </div>
+        </section>
+
+        <section class="form-section">
+          <div class="section-title">品牌与报名</div>
+          <div class="grid two-columns">
+            <label>
+              <span>品牌名</span>
+              <input id="brand-name" name="brand-name" type="text" maxlength="24" value="Urban Weekends" />
+            </label>
+            <label>
+              <span>Logo 文字</span>
+              <input id="logo-text" name="logo-text" type="text" maxlength="12" value="UW" />
+            </label>
+          </div>
+          <label>
+            <span>报名链接</span>
+            <input id="signup-link" name="signup-link" type="text" value="https://event.example.com/camping" />
+          </label>
+          <div class="grid two-columns">
+            <label>
+              <span>上传 Logo 图</span>
+              <input id="logo-upload" name="logo-upload" type="file" accept="image/*" />
+            </label>
+            <label>
+              <span>上传二维码图</span>
+              <input id="qr-upload" name="qr-upload" type="file" accept="image/*" />
+            </label>
+          </div>
+        </section>
+
+        <section class="form-section">
+          <div class="section-title">公司服务能力</div>
+          <label>
+            <span>主营介绍</span>
+            <textarea id="company-profile" name="company-profile" rows="5">公司主营活动策划，舞美搭建执行拥有自有搭建团队，可承接美陈类、会议类物料搭建、展会搭建，并配备自有舞台活动设备。</textarea>
+          </label>
+          <label>
+            <span>核心优势</span>
+            <textarea id="company-strengths" name="company-strengths" rows="4">活动策划与执行一体化、自有搭建团队、自有舞台设备、适合会议活动、展会和美陈项目整体落地。</textarea>
+          </label>
+        </section>
+
+        <section class="form-section">
+          <div class="section-title">生成结果</div>
+          <label>
+            <span>朋友圈文案</span>
+            <textarea id="moments-copy-output" rows="7" readonly></textarea>
+          </label>
+          <label>
+            <span>宣传文案</span>
+            <textarea id="copy-output" rows="6" readonly></textarea>
+          </label>
+          <label>
+            <span>活动方案</span>
+            <textarea id="proposal-output" rows="14" readonly></textarea>
+          </label>
+          <label>
+            <span>AI 海报提示词</span>
+            <textarea id="prompt-output" rows="7" readonly></textarea>
+          </label>
+        </section>
+
+        <section class="form-section">
+          <div class="section-title">AI 出图设置</div>
+          <div class="grid two-columns">
+            <label>
+              <span>图像模型</span>
+              <select id="image-model" name="image-model">
+                <option value="doubao-seedream-5-0-260128">doubao-seedream-5-0-260128</option>
+              </select>
+            </label>
+            <label>
+              <span>生成质量</span>
+              <select id="image-quality" name="image-quality">
+                <option value="low">低</option>
+                <option value="medium" selected>中</option>
+                <option value="high">高</option>
+              </select>
+            </label>
+          </div>
+          <label>
+            <span>生成提示词</span>
+            <textarea id="image-prompt-input" rows="8"></textarea>
+          </label>
+        </section>
+
+        <section class="form-section">
+          <div class="section-title">模板管理</div>
+          <label>
+            <span>已保存模板</span>
+            <select id="template-select" name="template-select">
+              <option value="">选择已保存模板</option>
+            </select>
+          </label>
+          <input id="template-import" name="template-import" type="file" accept="application/json" hidden />
+        </section>
+
+        <div class="actions primary-actions">
+          <button type="button" id="generate-copy">刷新文案</button>
+          <button type="button" id="download-svg" class="secondary">导出 SVG</button>
+          <button type="button" id="download-png" class="secondary">导出 PNG</button>
+        </div>
+        <div class="actions primary-actions">
+          <button type="button" id="generate-ai-image">AI 生成海报</button>
+          <button type="button" id="sync-ai-prompt" class="secondary">同步提示词</button>
+          <button type="button" id="download-ai-image" class="secondary">下载 AI 图</button>
+        </div>
+        <div class="actions utility-actions">
+          <button type="button" id="save-template" class="secondary">保存模板</button>
+          <button type="button" id="load-template" class="secondary">载入模板</button>
+          <button type="button" id="delete-template" class="secondary">删除模板</button>
+          <button type="button" id="export-template" class="secondary">导出模板</button>
+          <button type="button" id="import-template" class="secondary">导入模板</button>
+        </div>
+      </form>
+    </aside>
+
+    <main class="panel preview-panel">
+      <div class="preview-header">
+        <div>
+          <div class="eyebrow">Live Preview</div>
+          <h2>实时海报预览</h2>
+        </div>
+        <div id="size-badge" class="size-badge">4:5</div>
+      </div>
+
+      <div class="preview-stage">
+        <div class="preview-stack">
+          <div id="poster-card" class="poster-card sunset poster-portrait">
+            <div class="poster-noise"></div>
+            <div class="poster-orb orb-one"></div>
+            <div class="poster-orb orb-two"></div>
+            <div class="poster-content">
+              <div class="poster-topbar">
+                <div class="poster-tag" id="poster-tag">城市活动企划</div>
+                <div class="poster-brandmark" id="poster-brandmark">
+                  <img id="poster-logo-image" alt="Logo 预览" hidden />
+                  <span id="poster-logo-text">UW</span>
+                </div>
+              </div>
+              <div class="poster-main">
+                <div class="poster-date" id="poster-date">2026.05.18</div>
+                <h3 id="poster-title">春日城市露营节</h3>
+                <p id="poster-subtitle">自然、美食、音乐，一次打包周末松弛感</p>
+              </div>
+              <div class="poster-footer">
+                <div class="poster-meta">
+                  <div class="info-block">
+                    <div class="info-label">TIME</div>
+                    <div class="info-value" id="poster-time">14:00 - 20:30</div>
+                  </div>
+                  <div class="info-block">
+                    <div class="info-label">PLACE</div>
+                    <div class="info-value" id="poster-location">上海滨江绿地 A 区</div>
+                  </div>
+                  <div class="poster-highlights" id="poster-highlights">
+                    露营市集 / 乐队演出 / 手作体验 / 宠物友好
+                  </div>
+                  <div class="poster-link" id="poster-link">event.example.com/camping</div>
+                  <div class="poster-cta" id="poster-cta">限时免费预约</div>
+                </div>
+                <div class="poster-qr" id="poster-qr">
+                  <div class="qr-label">扫码报名</div>
+                  <img id="poster-qr-image" alt="二维码预览" hidden />
+                  <div class="qr-placeholder" id="poster-qr-placeholder">上传二维码图后会显示在这里</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <section class="ai-result-panel">
+            <div class="ai-result-header">
+              <div>
+                <div class="eyebrow">AI Output</div>
+                <h3>AI 海报生成结果</h3>
+              </div>
+              <div id="ai-status" class="ai-status">待生成</div>
+            </div>
+            <div class="ai-result-card" id="ai-result-card">
+              <img id="ai-result-image" alt="AI 生成海报" hidden />
+              <div id="ai-result-placeholder" class="ai-result-placeholder">
+                启动本地服务后，点击“AI 生成海报”即可在这里看到结果。
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="./app.js"></script>
+</body>
+</html>

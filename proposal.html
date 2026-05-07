@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>活动方案生成助手</title>
+  <link rel="stylesheet" href="./proposal.css" />
+</head>
+<body>
+  <main class="app-shell">
+    <section class="workspace">
+      <aside class="input-pane">
+        <header class="app-header">
+          <div class="eyebrow">Proposal Copilot</div>
+          <h1>活动方案生成助手</h1>
+          <p>输入活动初始条件，生成可向甲方汇报的 13-16 页四章节图文版方案，并导出 PPT。</p>
+        </header>
+
+        <form id="proposal-form" class="form-grid">
+          <section class="template-section" aria-labelledby="template-heading">
+            <h2 id="template-heading">PPT 模板预设</h2>
+            <label>
+              <span>内置模板</span>
+              <select id="template-preset">
+                <option value="strategy">策略咨询型：总分结构 / 数据感 / 甲方汇报</option>
+                <option value="brand">品牌发布型：大图封面 / 情绪递进 / 传播口号</option>
+                <option value="commerce">商业快闪型：动线叙事 / 打卡视觉 / 人流转化</option>
+                <option value="enterprise">稳重政企型：规范版式 / 风险控制 / 执行保障</option>
+              </select>
+            </label>
+            <div id="preset-summary" class="template-summary" aria-live="polite"></div>
+          </section>
+
+          <section>
+            <h2>项目条件</h2>
+            <label>
+              <span>活动号类型</span>
+              <select id="activity-account">
+                <option value="beauty">美业大健康微商活动号</option>
+                <option value="campus">校园活动号</option>
+                <option value="construction">建筑行业活动号</option>
+                <option value="mall">商超美陈号</option>
+                <option value="enterprise">企业年会团建号</option>
+              </select>
+            </label>
+            <div id="activity-prompt-summary" class="activity-summary" aria-live="polite"></div>
+            <label>
+              <span>甲方行业</span>
+              <input id="client-industry" value="美业大健康品牌" />
+            </label>
+            <label>
+              <span>活动目的</span>
+              <textarea id="event-objective" rows="4">提升品牌势能，完成招商转化，增强私域客户信任，并通过现场内容形成朋友圈传播。</textarea>
+            </label>
+          </section>
+
+          <section>
+            <h2>活动概况</h2>
+            <label>
+              <span>活动主题</span>
+              <select id="activity-theme-option"></select>
+              <input id="theme-direction" class="conditional-input" value="年度品牌招商峰会" />
+            </label>
+            <div class="field-row">
+              <label>
+                <span>活动时间</span>
+                <input id="event-time" value="2026 年 6 月" />
+              </label>
+              <label>
+                <span>活动地点</span>
+                <input id="event-location" value="城市会议中心 / 酒店宴会厅" />
+              </label>
+            </div>
+            <div class="field-row">
+              <label>
+                <span>预算区间</span>
+                <input id="budget-range" value="10-30 万" />
+              </label>
+              <label>
+                <span>预计人数</span>
+                <input id="headcount" value="200-300 人" />
+              </label>
+            </div>
+            <label>
+              <span>活动对象</span>
+              <select id="activity-object-option"></select>
+              <input id="target-audience" class="conditional-input" value="品牌代理商、意向加盟客户、私域核心客户、行业达人" />
+            </label>
+            <label>
+              <span>活动形式</span>
+              <select id="activity-form-option"></select>
+              <input id="activity-form" class="conditional-input" value="品牌招商峰会 + 产品体验 + 签约转化" />
+            </label>
+            <label>
+              <span>场地类型</span>
+              <input id="venue-type" value="室内会议厅 + 签到展示区 + 洽谈区" />
+            </label>
+            <label>
+              <span>活动执行</span>
+              <textarea id="activity-execution" rows="4">前期完成主题视觉、邀约物料、现场搭建图和执行排期；活动当天完成签到接待、舞台控场、产品体验、签约转化和摄影摄像记录；活动后输出复盘素材和二次传播内容。</textarea>
+            </label>
+          </section>
+
+          <section>
+            <h2>执行需求</h2>
+            <div class="field-row">
+              <label>
+                <span>是否需要舞台</span>
+                <select id="need-stage">
+                  <option value="需要">需要</option>
+                  <option value="不需要">不需要</option>
+                  <option value="待定">待定</option>
+                </select>
+              </label>
+              <label>
+                <span>是否需要美陈</span>
+                <select id="need-display">
+                  <option value="需要">需要</option>
+                  <option value="不需要">不需要</option>
+                  <option value="待定">待定</option>
+                </select>
+              </label>
+            </div>
+            <div class="field-row">
+              <label>
+                <span>是否需要宣发引流</span>
+                <select id="need-promotion">
+                  <option value="需要">需要</option>
+                  <option value="不需要">不需要</option>
+                  <option value="待定">待定</option>
+                </select>
+              </label>
+              <label>
+                <span>提案风格</span>
+                <select id="proposal-style">
+                  <option value="自动判断">自动判断</option>
+                  <option value="高端商务型">高端商务型</option>
+                  <option value="创意爆点型">创意爆点型</option>
+                  <option value="务实落地型">务实落地型</option>
+                  <option value="竞标提案型">竞标提案型</option>
+                  <option value="品牌营销型">品牌营销型</option>
+                  <option value="稳重政企型">稳重政企型</option>
+                </select>
+              </label>
+            </div>
+            <label>
+              <span>公司能力背书</span>
+              <textarea id="company-capability" rows="5">公司主营活动策划，舞美搭建执行拥有自有搭建团队，可承接美陈类、会议类物料搭建、展会搭建，并配备自有舞台活动设备，具备多年专业落地经验和品牌背书。</textarea>
+            </label>
+            <label>
+              <span>补充要求</span>
+              <textarea id="extra-requirements" rows="4">方案需要新颖、有创意、可落地、有差异化，适合直接向甲方路演汇报。</textarea>
+            </label>
+            <div class="field-stack">
+              <label class="checkbox-line">
+                <input id="include-3d" type="checkbox" />
+                <span>加入 3D 美陈 / 包装参考图</span>
+              </label>
+              <label>
+                <span>3D 风格说明</span>
+                <textarea id="three-d-brief" rows="3">用于美陈包装、舞美氛围、DP 点或空间装置展示，风格要与活动主题一致，尽量有质感和落地感。</textarea>
+              </label>
+              <label>
+                <span>上传 3D 参考图</span>
+                <input id="three-d-reference" type="file" accept="image/*" />
+                <div class="file-hint">勾选后需上传参考图片，系统会将其连同 3D 风格说明一起送入 Seed3D 任务。</div>
+              </label>
+            </div>
+          </section>
+
+          <section class="action-bar">
+            <label class="checkbox-line">
+              <input id="generate-images" type="checkbox" checked />
+              <span>正式方案继续生成核心 AI 图</span>
+            </label>
+            <div id="workflow-stage" class="workflow-note">第一步生成草稿预览和 3 张核心视觉；确认后再生成完整 13-16 页四章节方案。</div>
+            <div id="generation-progress" class="progress-panel" hidden>
+              <div class="progress-head">
+                <span id="progress-label">生成进度</span>
+                <strong id="progress-percent">0%</strong>
+              </div>
+              <div class="progress-track" aria-hidden="true">
+                <div id="progress-fill" class="progress-fill"></div>
+              </div>
+              <div id="progress-detail" class="progress-detail">等待任务启动。</div>
+            </div>
+            <button type="button" id="generate-proposal">生成草稿预览</button>
+            <button type="button" id="confirm-generation" class="confirm" disabled>确认草稿，生成完整方案</button>
+            <button type="button" id="export-ppt" class="secondary">导出 PPT</button>
+          </section>
+        </form>
+      </aside>
+
+      <section class="output-pane">
+        <div class="status-row">
+          <div>
+            <div class="eyebrow">Deck Preview</div>
+            <h2 id="deck-title">等待生成方案</h2>
+          </div>
+          <span id="proposal-status" class="status-pill">未生成</span>
+        </div>
+        <div id="deck-meta" class="deck-meta">生成后会展示 13-16 页 PPT 内容、四章节结构、图片提示词和核心 AI 配图。</div>
+        <section id="draft-review" class="draft-review" hidden>
+          <div class="draft-review-head">
+            <div>
+              <div class="eyebrow">Draft Review</div>
+              <h3>草稿预览：3 张核心视觉</h3>
+            </div>
+            <span id="draft-template" class="template-chip"></span>
+          </div>
+          <p id="draft-summary" class="draft-summary"></p>
+          <div id="draft-visuals" class="draft-visuals"></div>
+        </section>
+        <div id="slides-preview" class="slides-preview"></div>
+      </section>
+    </section>
+  </main>
+
+  <script src="./proposal.js"></script>
+</body>
+</html>

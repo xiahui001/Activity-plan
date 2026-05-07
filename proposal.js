@@ -6,6 +6,8 @@ const slidesPreviewEl = document.getElementById("slides-preview");
 const generateButton = document.getElementById("generate-proposal");
 const confirmButton = document.getElementById("confirm-generation");
 const exportButton = document.getElementById("export-ppt");
+const include3DInput = document.getElementById("include-3d");
+const threeDFieldsEl = document.getElementById("three-d-fields");
 const threeDReferenceInput = document.getElementById("three-d-reference");
 const generateImagesInput = document.getElementById("generate-images");
 const templatePresetSelect = document.getElementById("template-preset");
@@ -180,6 +182,18 @@ function getChecked(id) {
   return Boolean(document.getElementById(id)?.checked);
 }
 
+function syncThreeDFields() {
+  if (!include3DInput || !threeDFieldsEl) {
+    return;
+  }
+
+  const enabled = include3DInput.checked;
+  threeDFieldsEl.hidden = !enabled;
+  if (!enabled && threeDReferenceInput) {
+    threeDReferenceInput.value = "";
+  }
+}
+
 function getSelectedActivityPrompt() {
   const presetId = activityAccountSelect?.value || "beauty";
   return {
@@ -195,12 +209,7 @@ function updateActivityPromptSummary() {
 
   const preset = getSelectedActivityPrompt();
   activityPromptSummaryEl.innerHTML = `
-    <strong>${escapeHtml(preset.name)} Prompt 已启用</strong>
-    <p>${escapeHtml(preset.strategy)}</p>
-    <dl>
-      <div><dt>路径</dt><dd>${escapeHtml(preset.route)}</dd></div>
-      <div><dt>画面</dt><dd>${escapeHtml(preset.visuals)}</dd></div>
-    </dl>
+    <strong>${escapeHtml(preset.name)}</strong>
   `;
 }
 
@@ -233,7 +242,7 @@ function fillConditionalSelect(selectId, inputId, options, defaultValue) {
   const values = Array.isArray(options) && options.length ? options : [defaultValue].filter(Boolean);
   select.innerHTML = [
     ...values.map((value) => `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`),
-    `<option value="${CUSTOM_OPTION_VALUE}">其他，手动填写</option>`,
+    `<option value="${CUSTOM_OPTION_VALUE}">其他</option>`,
   ].join("");
   select.value = values.includes(defaultValue) ? defaultValue : values[0] || CUSTOM_OPTION_VALUE;
   input.value = select.value === CUSTOM_OPTION_VALUE ? defaultValue || "" : select.value;
@@ -289,7 +298,7 @@ function hydrateTemplateSelect() {
   }
 
   templatePresetSelect.innerHTML = Object.entries(TEMPLATE_PRESETS_V2)
-    .map(([id, preset]) => `<option value="${id}">${preset.name}：${preset.summary}</option>`)
+    .map(([id, preset]) => `<option value="${id}">${preset.name}</option>`)
     .join("");
   templatePresetSelect.value = "premium-business";
 }
@@ -297,11 +306,11 @@ function hydrateTemplateSelect() {
 function refreshWorkflowCopy() {
   const imageLabel = generateImagesInput?.closest("label")?.querySelector("span");
   if (imageLabel) {
-    imageLabel.textContent = "正式方案生成全部 AI 图（预览只出 3 张核心图）";
+    imageLabel.textContent = "完整 PPT 生成全部配图";
   }
 
   if (workflowStageEl) {
-    workflowStageEl.textContent = "先生成草稿预览和 3 张核心视觉，确认模板与主题后，再生成完整 13-16 页四章节方案。";
+    workflowStageEl.textContent = "先草稿，后完整 PPT。";
   }
 }
 
@@ -309,11 +318,6 @@ function updateTemplateSummary() {
   const preset = getSelectedPreset();
   presetSummaryEl.innerHTML = `
     <strong>${escapeHtml(preset.name)}</strong>
-    <p>${escapeHtml(preset.summary)}</p>
-    <dl>
-      <div><dt>结构</dt><dd>${escapeHtml(preset.structure)}</dd></div>
-      <div><dt>视觉</dt><dd>${escapeHtml(preset.visual)}</dd></div>
-    </dl>
   `;
 }
 
@@ -684,8 +688,8 @@ function setWorkflowState(nextState) {
   generateImagesInput.disabled = busy;
   templatePresetSelect.disabled = busy;
 
-  generateButton.textContent = workflowState === "draft-loading" ? "草稿生成中..." : "生成草稿预览";
-  confirmButton.textContent = workflowState === "full-loading" ? "完整方案生成中..." : "确认草稿，生成完整方案";
+  generateButton.textContent = workflowState === "draft-loading" ? "生成中..." : "生成草稿";
+  confirmButton.textContent = workflowState === "full-loading" ? "生成中..." : "生成完整 PPT";
   exportButton.textContent = workflowState === "export-loading" ? "导出中..." : "导出 PPT";
 }
 
@@ -697,9 +701,9 @@ async function generateDraftPreview() {
   draftVisualsEl.innerHTML = "";
   slidesPreviewEl.innerHTML = "";
   deckTitleEl.textContent = "正在生成草稿...";
-  deckMetaEl.textContent = "草稿阶段会请求 3 张核心视觉，用于先确认模板、主题和画面方向。";
-  workflowStageEl.textContent = "草稿生成中，请等待接口返回。";
-  setStatus("生成草稿预览中", "loading");
+  deckMetaEl.textContent = "生成草稿中。";
+  workflowStageEl.textContent = "草稿生成中。";
+  setStatus("生成草稿中", "loading");
   setWorkflowState("draft-loading");
 
   try {
@@ -713,13 +717,13 @@ async function generateDraftPreview() {
 
     renderDraftProposal(payload.proposal, input.templatePreset);
     setStatus("草稿待确认", "success");
-    workflowStageEl.textContent = "请检查草稿方向和 3 张核心视觉；确认后再生成完整 PPT 方案。";
+    workflowStageEl.textContent = "确认后生成完整 PPT。";
     setWorkflowState("draft-ready");
   } catch (error) {
     setStatus("草稿失败", "error");
     deckTitleEl.textContent = "草稿生成失败";
     deckMetaEl.textContent = String(error.message || error);
-    workflowStageEl.textContent = "请修正输入或 3D 参考图后重新生成草稿。";
+    workflowStageEl.textContent = "请调整后重试。";
     setWorkflowState("idle");
   }
 }
@@ -733,9 +737,9 @@ async function generateFullProposal() {
   currentProposal = null;
   slidesPreviewEl.innerHTML = "";
   deckTitleEl.textContent = "正在生成完整方案...";
-  deckMetaEl.textContent = "正在基于已确认草稿生成 13-16 页四章节完整方案。";
-  workflowStageEl.textContent = "完整方案生成中，完成后可导出 PPT。";
-  setStatus(getChecked("generate-images") ? "生成完整方案和核心图中" : "生成完整方案中", "loading");
+  deckMetaEl.textContent = "生成完整 PPT 中。";
+  workflowStageEl.textContent = "完整 PPT 生成中。";
+  setStatus(getChecked("generate-images") ? "生成 PPT 和图片中" : "生成 PPT 中", "loading");
   setWorkflowState("full-loading");
 
   try {
@@ -748,13 +752,13 @@ async function generateFullProposal() {
 
     renderProposal(payload.proposal);
     setStatus("完整方案已生成", "success");
-    workflowStageEl.textContent = "完整方案已生成，可导出 PPT；如需调整，可重新生成草稿。";
+    workflowStageEl.textContent = "可导出 PPT。";
     setWorkflowState("full-ready");
   } catch (error) {
     setStatus("完整生成失败", "error");
     deckTitleEl.textContent = "完整方案生成失败";
     deckMetaEl.textContent = String(error.message || error);
-    workflowStageEl.textContent = "草稿仍可确认重试，或重新生成草稿。";
+    workflowStageEl.textContent = "可重试。";
     setWorkflowState(draftProposal ? "draft-ready" : "idle");
   }
 }
@@ -803,6 +807,7 @@ confirmButton.addEventListener("click", generateFullProposal);
 exportButton.addEventListener("click", exportPpt);
 templatePresetSelect.addEventListener("change", updateTemplateSummary);
 activityAccountSelect?.addEventListener("change", handleActivityAccountChange);
+include3DInput?.addEventListener("change", syncThreeDFields);
 document.getElementById("activity-theme-option")?.addEventListener("change", () => {
   syncConditionalSelect("activity-theme-option", "theme-direction");
 });
@@ -821,6 +826,7 @@ form.addEventListener("submit", (event) => {
 hydrateTemplateSelect();
 refreshWorkflowCopy();
 applyActivityDefaults();
+syncThreeDFields();
 updateTemplateSummary();
 updateActivityPromptSummary();
 setWorkflowState("idle");

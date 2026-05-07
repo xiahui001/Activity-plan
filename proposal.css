@@ -213,7 +213,7 @@ p {
 
 .template-summary,
 .activity-summary {
-  padding: 20px 21px;
+  padding: 15px 17px;
 }
 
 .template-summary strong,
@@ -231,7 +231,7 @@ p {
 
 .template-summary p,
 .activity-summary p {
-  margin-top: 8px;
+  margin-top: 6px;
   color: var(--ink-soft);
   font-size: 16px;
   line-height: 1.85;
@@ -278,6 +278,11 @@ p {
 }
 
 .field-stack {
+  display: grid;
+  gap: 20px;
+}
+
+.three-d-fields {
   display: grid;
   gap: 20px;
 }
@@ -378,7 +383,7 @@ button:focus-visible {
 }
 
 .workflow-note {
-  padding: 20px 22px;
+  padding: 16px 18px;
   color: var(--ink-soft);
   font-size: 18px;
   line-height: 1.8;

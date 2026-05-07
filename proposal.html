@@ -13,7 +13,7 @@
         <header class="app-header">
           <div class="eyebrow">Proposal Copilot</div>
           <h1>活动方案生成助手</h1>
-          <p>输入活动初始条件，生成可向甲方汇报的 13-16 页四章节图文版方案，并导出 PPT。</p>
+          <p>输入条件，一键生成路演级 PPT。</p>
         </header>
 
         <form id="proposal-form" class="form-grid">
@@ -22,10 +22,10 @@
             <label>
               <span>内置模板</span>
               <select id="template-preset">
-                <option value="strategy">策略咨询型：总分结构 / 数据感 / 甲方汇报</option>
-                <option value="brand">品牌发布型：大图封面 / 情绪递进 / 传播口号</option>
-                <option value="commerce">商业快闪型：动线叙事 / 打卡视觉 / 人流转化</option>
-                <option value="enterprise">稳重政企型：规范版式 / 风险控制 / 执行保障</option>
+                <option value="strategy">策略咨询型</option>
+                <option value="brand">品牌发布型</option>
+                <option value="commerce">商业快闪型</option>
+                <option value="enterprise">稳重政企型</option>
               </select>
             </label>
             <div id="preset-summary" class="template-summary" aria-live="polite"></div>
@@ -156,24 +156,26 @@
                 <input id="include-3d" type="checkbox" />
                 <span>加入 3D 美陈 / 包装参考图</span>
               </label>
-              <label>
-                <span>3D 风格说明</span>
-                <textarea id="three-d-brief" rows="3">用于美陈包装、舞美氛围、DP 点或空间装置展示，风格要与活动主题一致，尽量有质感和落地感。</textarea>
-              </label>
-              <label>
-                <span>上传 3D 参考图</span>
-                <input id="three-d-reference" type="file" accept="image/*" />
-                <div class="file-hint">勾选后需上传参考图片，系统会将其连同 3D 风格说明一起送入 Seed3D 任务。</div>
-              </label>
+              <div id="three-d-fields" class="three-d-fields" hidden>
+                <label>
+                  <span>3D 风格说明</span>
+                  <textarea id="three-d-brief" rows="3">用于美陈包装、舞美氛围、DP 点或空间装置展示，风格要与活动主题一致，尽量有质感和落地感。</textarea>
+                </label>
+                <label>
+                  <span>上传 3D 参考图</span>
+                  <input id="three-d-reference" type="file" accept="image/*" />
+                  <div class="file-hint">需上传参考图。</div>
+                </label>
+              </div>
             </div>
           </section>
 
           <section class="action-bar">
             <label class="checkbox-line">
               <input id="generate-images" type="checkbox" checked />
-              <span>正式方案继续生成核心 AI 图</span>
+              <span>完整 PPT 生成全部配图</span>
             </label>
-            <div id="workflow-stage" class="workflow-note">第一步生成草稿预览和 3 张核心视觉；确认后再生成完整 13-16 页四章节方案。</div>
+            <div id="workflow-stage" class="workflow-note">先草稿，后完整 PPT。</div>
             <div id="generation-progress" class="progress-panel" hidden>
               <div class="progress-head">
                 <span id="progress-label">生成进度</span>
@@ -182,10 +184,10 @@
               <div class="progress-track" aria-hidden="true">
                 <div id="progress-fill" class="progress-fill"></div>
               </div>
-              <div id="progress-detail" class="progress-detail">等待任务启动。</div>
+              <div id="progress-detail" class="progress-detail">等待开始。</div>
             </div>
-            <button type="button" id="generate-proposal">生成草稿预览</button>
-            <button type="button" id="confirm-generation" class="confirm" disabled>确认草稿，生成完整方案</button>
+            <button type="button" id="generate-proposal">生成草稿</button>
+            <button type="button" id="confirm-generation" class="confirm" disabled>生成完整 PPT</button>
             <button type="button" id="export-ppt" class="secondary">导出 PPT</button>
           </section>
         </form>
@@ -199,12 +201,12 @@
           </div>
           <span id="proposal-status" class="status-pill">未生成</span>
         </div>
-        <div id="deck-meta" class="deck-meta">生成后会展示 13-16 页 PPT 内容、四章节结构、图片提示词和核心 AI 配图。</div>
+        <div id="deck-meta" class="deck-meta">草稿与 PPT 预览区。</div>
         <section id="draft-review" class="draft-review" hidden>
           <div class="draft-review-head">
             <div>
               <div class="eyebrow">Draft Review</div>
-              <h3>草稿预览：3 张核心视觉</h3>
+              <h3>草稿预览</h3>
             </div>
             <span id="draft-template" class="template-chip"></span>
           </div>

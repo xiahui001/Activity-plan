@@ -78,16 +78,17 @@ p {
 
 .app-shell {
   position: relative;
-  padding: 24px;
+  padding: 16px;
 }
 
 .workspace {
   display: grid;
-  grid-template-columns: minmax(560px, 680px) minmax(0, 1fr);
-  gap: 34px;
+  grid-template-columns: minmax(480px, 4fr) minmax(0, 6fr);
+  gap: 26px;
   align-items: start;
-  max-width: 1680px;
-  margin: 0 auto;
+  width: 100%;
+  min-height: calc(100vh - 32px);
+  margin: 0;
 }
 
 .input-pane,
@@ -104,14 +105,14 @@ p {
 
 .input-pane {
   overflow: auto;
-  max-height: calc(100vh - 48px);
+  max-height: calc(100vh - 32px);
   padding: 44px 44px 50px;
 }
 
 .output-pane {
   overflow: hidden;
-  min-height: calc(100vh - 48px);
-  padding: 34px 32px;
+  min-height: calc(100vh - 32px);
+  padding: 44px 44px;
 }
 
 .output-pane::before {
@@ -560,7 +561,7 @@ button:disabled {
 .deck-meta {
   position: relative;
   z-index: 1;
-  max-width: 58em;
+  max-width: 72em;
   margin-top: 14px;
   color: var(--ink-soft);
   line-height: 1.8;

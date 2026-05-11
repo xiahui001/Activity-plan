@@ -83,3 +83,21 @@ $env:ARK_API_KEY="你的豆包 Ark API Key"
 - 支持一次生成多张候选海报
 - 支持把 AI 生成图再叠加当前二维码和 Logo
 - 增加活动模板分组、品牌库和批量出图
+
+## Baseline Regression Gate
+
+Before changing poster generation, prompt assembly, Ark proxy routes, or proposal export behavior, run:
+
+```powershell
+npm.cmd run test:baseline
+```
+
+This baseline protects the current working surface:
+
+- `POST /api/generate-activity-fields` returns usable poster fields instead of 405.
+- Poster generation keeps three parallel image requests.
+- Image requests support 4K output and send `watermark: false`.
+- Date and location stay in a bottom information bar in the fixed image prompt.
+- Proposal regression coverage still passes.
+
+Run the baseline before and after related changes. For a manually verified checkpoint, tag it with a date-based name such as `baseline-2026-05-12-tested`.

@@ -4,30 +4,29 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>海报生成助手</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link
-    href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Noto+Sans+SC:wght@400;500;700;900&display=swap"
-    rel="stylesheet"
-  />
   <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
-  <div class="page-shell">
-    <aside class="panel form-panel">
-      <div class="eyebrow">Poster Copilot</div>
-      <h1>海报生成助手</h1>
-      <p class="intro">
-        为活动策划快速整理文案、选风格、出海报预览，再进一步直接生成 AI 海报图。
-      </p>
+  <main class="app-shell poster-app">
+    <section class="workspace poster-workspace">
+      <aside class="input-pane">
+        <header class="app-header">
+          <div class="eyebrow">Poster Copilot</div>
+          <h1>海报生成助手</h1>
+          <p>输入活动信息，联动 AI 文案与真实图片模型，生成可直接传播的活动海报。</p>
+        </header>
 
-      <form id="poster-form">
-        <section class="form-section">
-          <div class="section-title">活动信息</div>
-          <label>
-            <span>活动名称</span>
-            <input id="title" name="title" type="text" maxlength="28" value="春日城市露营节" />
-          </label>
+      <form id="poster-form" class="form-grid">
+        <section>
+          <h2>活动信息</h2>
+          <div class="field-with-action">
+            <label>
+              <span>活动名称</span>
+              <input id="title" name="title" type="text" maxlength="28" value="春日城市露营节" />
+            </label>
+            <button type="button" id="generate-ai-fields" class="inline-action">刷新文案</button>
+          </div>
+          <div id="ai-fields-status" class="field-status" aria-live="polite"></div>
           <label>
             <span>副标题</span>
             <input
@@ -38,60 +37,96 @@
               value="自然、美食、音乐，一次打包周末松弛感"
             />
           </label>
-          <div class="grid two-columns">
+          <div class="font-stack">
             <label>
-              <span>日期</span>
-              <input id="date" name="date" type="text" value="2026.05.18" />
+              <span>主标题字体</span>
+              <select id="title-font" name="title-font">
+                <option value="思源黑体 Heavy" selected>思源黑体 Heavy</option>
+                <option value="思源宋体 Heavy">思源宋体 Heavy</option>
+                <option value="阿里巴巴普惠体 Heavy">阿里巴巴普惠体 Heavy</option>
+                <option value="方正兰亭黑">方正兰亭黑</option>
+                <option value="方正大标宋">方正大标宋</option>
+                <option value="方正小标宋">方正小标宋</option>
+                <option value="汉仪旗黑">汉仪旗黑</option>
+                <option value="汉仪尚巍手书">汉仪尚巍手书</option>
+                <option value="优设标题黑">优设标题黑</option>
+                <option value="站酷高端黑">站酷高端黑</option>
+                <option value="庞门正道标题体">庞门正道标题体</option>
+                <option value="造字工房力黑">造字工房力黑</option>
+              </select>
             </label>
             <label>
-              <span>时间</span>
-              <input id="time" name="time" type="text" value="14:00 - 20:30" />
+              <span>副标题字体</span>
+              <select id="subtitle-font" name="subtitle-font">
+                <option value="思源黑体 Medium" selected>思源黑体 Medium</option>
+                <option value="思源宋体 Medium">思源宋体 Medium</option>
+                <option value="阿里巴巴普惠体 Medium">阿里巴巴普惠体 Medium</option>
+                <option value="方正兰亭黑">方正兰亭黑</option>
+                <option value="方正大标宋">方正大标宋</option>
+                <option value="方正小标宋">方正小标宋</option>
+                <option value="汉仪旗黑">汉仪旗黑</option>
+                <option value="汉仪尚巍手书">汉仪尚巍手书</option>
+                <option value="优设标题黑">优设标题黑</option>
+                <option value="站酷高端黑">站酷高端黑</option>
+                <option value="庞门正道标题体">庞门正道标题体</option>
+                <option value="造字工房力黑">造字工房力黑</option>
+              </select>
             </label>
           </div>
+          <label>
+            <span>日期</span>
+            <input id="date" name="date" type="text" value="2026.05.18" />
+          </label>
           <label>
             <span>地点</span>
             <input id="location" name="location" type="text" value="上海滨江绿地 A 区" />
           </label>
           <label>
-            <span>主推亮点</span>
+            <span>设计方向</span>
             <textarea id="highlights" name="highlights" rows="3">露营市集 / 乐队演出 / 手作体验 / 宠物友好</textarea>
-          </label>
-          <label>
-            <span>行动按钮</span>
-            <input id="cta" name="cta" type="text" maxlength="20" value="限时免费预约" />
           </label>
         </section>
 
-        <section class="form-section">
-          <div class="section-title">视觉设置</div>
-          <div class="grid two-columns">
-            <label>
-              <span>风格预设</span>
-              <select id="theme" name="theme">
-                <option value="sunset">落日露营</option>
-                <option value="neon">霓虹派对</option>
-                <option value="forest">自然市集</option>
-              </select>
-            </label>
-            <label>
-              <span>海报尺寸</span>
-              <select id="size" name="size">
-                <option value="portrait">竖版 4:5</option>
-                <option value="square">方版 1:1</option>
-                <option value="story">长版 9:16</option>
-              </select>
-            </label>
+        <section>
+          <h2>视觉设置</h2>
+          <label>
+            <span>风格预设</span>
+            <input id="theme" name="theme" type="text" maxlength="32" value="落日露营" />
+          </label>
+          <div class="color-picker-grid" role="group" aria-label="色彩设置">
+            <span class="color-picker-label color-picker-primary-label">主色调</span>
+            <span class="color-picker-label color-picker-accent-label">搭配色系</span>
+            <div id="brand-primary-shell" class="color-picker-shell color-picker-primary-control" style="background: #ff8c61">
+              <input id="brand-primary" name="brand-primary" type="color" value="#ff8c61" aria-label="主色调" />
+            </div>
+            <div id="brand-accent-shell" class="color-picker-shell color-picker-accent-control" style="background: #fff4d0">
+              <input id="brand-accent" name="brand-accent" type="color" value="#fff4d0" aria-label="搭配色系" />
+            </div>
           </div>
-          <div class="grid two-columns">
-            <label>
-              <span>主品牌色</span>
-              <input id="brand-primary" name="brand-primary" type="color" value="#ff8c61" />
-            </label>
-            <label>
-              <span>强调色</span>
-              <input id="brand-accent" name="brand-accent" type="color" value="#fff4d0" />
-            </label>
-          </div>
+          <label>
+            <span>海报类型</span>
+            <select id="poster-type" name="poster-type">
+              <option value="kv" selected>主 KV｜横屏高精度</option>
+              <option value="checkin">打卡点｜场景中高精度</option>
+              <option value="poster">海报｜竖屏高精度</option>
+            </select>
+            <small class="field-hint">切换类型会自动匹配推荐画面方向；仍可在下方手动改方向。</small>
+          </label>
+          <label>
+            <span>画面方向</span>
+            <select id="image-orientation" name="image-orientation">
+              <option value="landscape" selected>横屏 16:9</option>
+              <option value="portrait">竖屏 9:16</option>
+            </select>
+          </label>
+          <label>
+            <span>输出规格</span>
+            <select id="image-resolution" name="image-resolution">
+              <option value="2K">2K 快速预览</option>
+              <option value="4K" selected>4K 商业出图</option>
+            </select>
+            <small class="field-hint">用于豆包生图 API 的输出规格；上方画面方向仍控制构图比例。</small>
+          </label>
           <label>
             <span>视觉关键词</span>
             <input
@@ -104,151 +139,70 @@
           </label>
         </section>
 
-        <section class="form-section">
-          <div class="section-title">传播设置</div>
-          <div class="grid two-columns">
-            <label>
-              <span>传播场景</span>
-              <select id="campaign-channel" name="campaign-channel">
-                <option value="moments" selected>朋友圈引流</option>
-                <option value="poster">活动主海报</option>
-                <option value="group">社群转发</option>
-              </select>
-            </label>
-            <label>
-              <span>主推利益点</span>
-              <input id="offer-hook" name="offer-hook" type="text" maxlength="30" value="限时预约 / 到场福利 / 名额有限" />
-            </label>
-          </div>
-        </section>
-
-        <section class="form-section">
-          <div class="section-title">品牌与报名</div>
-          <div class="grid two-columns">
+        <section>
+          <h2>品牌与素材</h2>
+          <div class="field-row brand-material-row">
             <label>
               <span>品牌名</span>
               <input id="brand-name" name="brand-name" type="text" maxlength="24" value="Urban Weekends" />
             </label>
             <label>
-              <span>Logo 文字</span>
-              <input id="logo-text" name="logo-text" type="text" maxlength="12" value="UW" />
+              <span>上传 Logo 文件</span>
+              <input id="logo-upload" name="logo-upload" type="file" accept="image/svg+xml,.svg,image/png,image/jpeg,image/webp" />
+              <small class="field-hint">建议 SVG 优先，保持矢量清晰；如只有 AI/EPS/PDF 源文件，请先导出 SVG 或透明 PNG 后上传。</small>
             </label>
           </div>
-          <label>
-            <span>报名链接</span>
-            <input id="signup-link" name="signup-link" type="text" value="https://event.example.com/camping" />
-          </label>
-          <div class="grid two-columns">
-            <label>
-              <span>上传 Logo 图</span>
-              <input id="logo-upload" name="logo-upload" type="file" accept="image/*" />
-            </label>
-            <label>
-              <span>上传二维码图</span>
-              <input id="qr-upload" name="qr-upload" type="file" accept="image/*" />
-            </label>
-          </div>
-        </section>
-
-        <section class="form-section">
-          <div class="section-title">公司服务能力</div>
-          <label>
-            <span>主营介绍</span>
-            <textarea id="company-profile" name="company-profile" rows="5">公司主营活动策划，舞美搭建执行拥有自有搭建团队，可承接美陈类、会议类物料搭建、展会搭建，并配备自有舞台活动设备。</textarea>
+          <label class="switch-field">
+            <input id="qr-enabled" name="qr-enabled" type="checkbox" />
+            <span class="switch-control" aria-hidden="true"></span>
+            <span class="switch-text">
+              <strong>海报显示二维码</strong>
+              <small>开启后才预留二维码区域，并把上传二维码盖到生成图上。</small>
+            </span>
           </label>
           <label>
-            <span>核心优势</span>
-            <textarea id="company-strengths" name="company-strengths" rows="4">活动策划与执行一体化、自有搭建团队、自有舞台设备、适合会议活动、展会和美陈项目整体落地。</textarea>
+            <span>上传二维码图片</span>
+            <input id="qr-upload" name="qr-upload" type="file" accept="image/*" />
           </label>
         </section>
 
-        <section class="form-section">
-          <div class="section-title">生成结果</div>
-          <label>
-            <span>朋友圈文案</span>
-            <textarea id="moments-copy-output" rows="7" readonly></textarea>
-          </label>
-          <label>
-            <span>宣传文案</span>
-            <textarea id="copy-output" rows="6" readonly></textarea>
-          </label>
-          <label>
-            <span>活动方案</span>
-            <textarea id="proposal-output" rows="14" readonly></textarea>
-          </label>
-          <label>
-            <span>AI 海报提示词</span>
-            <textarea id="prompt-output" rows="7" readonly></textarea>
-          </label>
-        </section>
-
-        <section class="form-section">
-          <div class="section-title">AI 出图设置</div>
-          <div class="grid two-columns">
-            <label>
-              <span>图像模型</span>
-              <select id="image-model" name="image-model">
-                <option value="doubao-seedream-5-0-260128">doubao-seedream-5-0-260128</option>
-              </select>
-            </label>
-            <label>
-              <span>生成质量</span>
-              <select id="image-quality" name="image-quality">
-                <option value="low">低</option>
-                <option value="medium" selected>中</option>
-                <option value="high">高</option>
-              </select>
-            </label>
-          </div>
-          <label>
-            <span>生成提示词</span>
-            <textarea id="image-prompt-input" rows="8"></textarea>
-          </label>
-        </section>
-
-        <section class="form-section">
-          <div class="section-title">模板管理</div>
-          <label>
-            <span>已保存模板</span>
-            <select id="template-select" name="template-select">
-              <option value="">选择已保存模板</option>
-            </select>
-          </label>
-          <input id="template-import" name="template-import" type="file" accept="application/json" hidden />
-        </section>
-
-        <div class="actions primary-actions">
-          <button type="button" id="generate-copy">刷新文案</button>
-          <button type="button" id="download-svg" class="secondary">导出 SVG</button>
-          <button type="button" id="download-png" class="secondary">导出 PNG</button>
+        <div hidden>
+          <textarea id="moments-copy-output" readonly></textarea>
+          <textarea id="copy-output" readonly></textarea>
+          <textarea id="proposal-output" readonly></textarea>
+          <textarea id="prompt-output" readonly></textarea>
+          <select id="image-model" name="image-model">
+            <option value="doubao-seedream-5-0-260128">doubao-seedream-5-0-260128</option>
+          </select>
+          <select id="image-quality" name="image-quality">
+            <option value="medium" selected>中</option>
+          </select>
+          <textarea id="image-prompt-input"></textarea>
+          <select id="template-select" name="template-select">
+            <option value=""></option>
+          </select>
+          <input id="template-import" name="template-import" type="file" accept="application/json" />
         </div>
-        <div class="actions primary-actions">
+
+        <section class="action-bar poster-action-bar">
           <button type="button" id="generate-ai-image">AI 生成海报</button>
-          <button type="button" id="sync-ai-prompt" class="secondary">同步提示词</button>
-          <button type="button" id="download-ai-image" class="secondary">下载 AI 图</button>
-        </div>
-        <div class="actions utility-actions">
-          <button type="button" id="save-template" class="secondary">保存模板</button>
-          <button type="button" id="load-template" class="secondary">载入模板</button>
-          <button type="button" id="delete-template" class="secondary">删除模板</button>
-          <button type="button" id="export-template" class="secondary">导出模板</button>
-          <button type="button" id="import-template" class="secondary">导入模板</button>
-        </div>
+          <button type="button" id="download-png" class="secondary">下载图片</button>
+        </section>
       </form>
     </aside>
 
-    <main class="panel preview-panel">
-      <div class="preview-header">
+    <section class="output-pane">
+      <div class="status-row preview-header">
         <div>
-          <div class="eyebrow">Live Preview</div>
-          <h2>实时海报预览</h2>
+          <div class="eyebrow">AI Output</div>
+          <h2>AI 海报生成结果</h2>
         </div>
-        <div id="size-badge" class="size-badge">4:5</div>
+        <div id="size-badge" class="size-badge" hidden>4:5</div>
       </div>
 
       <div class="preview-stage">
         <div class="preview-stack">
-          <div id="poster-card" class="poster-card sunset poster-portrait">
+          <div id="poster-card" class="poster-card sunset poster-portrait" hidden>
             <div class="poster-noise"></div>
             <div class="poster-orb orb-one"></div>
             <div class="poster-orb orb-two"></div>
@@ -268,10 +222,6 @@
               <div class="poster-footer">
                 <div class="poster-meta">
                   <div class="info-block">
-                    <div class="info-label">TIME</div>
-                    <div class="info-value" id="poster-time">14:00 - 20:30</div>
-                  </div>
-                  <div class="info-block">
                     <div class="info-label">PLACE</div>
                     <div class="info-value" id="poster-location">上海滨江绿地 A 区</div>
                   </div>
@@ -282,7 +232,7 @@
                   <div class="poster-cta" id="poster-cta">限时免费预约</div>
                 </div>
                 <div class="poster-qr" id="poster-qr">
-                  <div class="qr-label">扫码报名</div>
+                  <div class="qr-label">扫码了解</div>
                   <img id="poster-qr-image" alt="二维码预览" hidden />
                   <div class="qr-placeholder" id="poster-qr-placeholder">上传二维码图后会显示在这里</div>
                 </div>
@@ -293,21 +243,68 @@
           <section class="ai-result-panel">
             <div class="ai-result-header">
               <div>
-                <div class="eyebrow">AI Output</div>
-                <h3>AI 海报生成结果</h3>
+                <div class="eyebrow">Real Model Result</div>
+                <h3>真实模型生成图</h3>
               </div>
               <div id="ai-status" class="ai-status">待生成</div>
             </div>
-            <div class="ai-result-card" id="ai-result-card">
-              <img id="ai-result-image" alt="AI 生成海报" hidden />
-              <div id="ai-result-placeholder" class="ai-result-placeholder">
-                启动本地服务后，点击“AI 生成海报”即可在这里看到结果。
+            <div id="ai-progress" class="ai-progress" hidden aria-live="polite">
+              <div class="ai-progress-topline">
+                <span>生成进度</span>
+                <span id="ai-progress-percent">0%</span>
+              </div>
+              <div class="ai-progress-track" aria-hidden="true">
+                <div id="ai-progress-bar" class="ai-progress-bar"></div>
+              </div>
+              <div id="ai-progress-detail" class="ai-progress-detail">等待提交生成请求</div>
+            </div>
+            <div id="ai-result-gallery" class="ai-result-gallery">
+              <div class="ai-result-item">
+                <div class="ai-result-card ai-result-slot is-selected" id="ai-result-card" data-ai-result-slot="0" tabindex="0" role="button" aria-label="放大查看第 1 张生成结果">
+                  <img id="ai-result-image" data-ai-result-image alt="AI 生成海报 1" hidden />
+                  <div id="ai-result-placeholder" class="ai-result-placeholder" data-ai-result-placeholder>
+                    点击左侧“AI 生成海报”，这里会并行显示 3 张真实模型生成结果。
+                  </div>
+                </div>
+                <button type="button" class="result-download" data-ai-download="0" disabled>下载第 1 张</button>
+              </div>
+              <div class="ai-result-item">
+                <div class="ai-result-card ai-result-slot" data-ai-result-slot="1" tabindex="0" role="button" aria-label="放大查看第 2 张生成结果">
+                  <img data-ai-result-image alt="AI 生成海报 2" hidden />
+                  <div class="ai-result-placeholder" data-ai-result-placeholder>第 2 张结果待生成</div>
+                </div>
+                <button type="button" class="result-download" data-ai-download="1" disabled>下载第 2 张</button>
+              </div>
+              <div class="ai-result-item">
+                <div class="ai-result-card ai-result-slot" data-ai-result-slot="2" tabindex="0" role="button" aria-label="放大查看第 3 张生成结果">
+                  <img data-ai-result-image alt="AI 生成海报 3" hidden />
+                  <div class="ai-result-placeholder" data-ai-result-placeholder>第 3 张结果待生成</div>
+                </div>
+                <button type="button" class="result-download" data-ai-download="2" disabled>下载第 3 张</button>
               </div>
             </div>
           </section>
         </div>
       </div>
-    </main>
+    </section>
+    </section>
+  </main>
+
+  <div id="image-lightbox" class="image-lightbox" hidden role="dialog" aria-modal="true" aria-label="海报放大预览">
+    <div class="lightbox-backdrop" data-lightbox-close></div>
+    <div class="lightbox-panel">
+      <div class="lightbox-head">
+        <div>
+          <div class="eyebrow">Preview</div>
+          <h3 id="lightbox-title">生成结果预览</h3>
+        </div>
+        <button type="button" class="lightbox-close" data-lightbox-close aria-label="关闭预览">关闭</button>
+      </div>
+      <div class="lightbox-stage">
+        <img id="lightbox-image" alt="放大的 AI 生成海报" />
+      </div>
+      <button type="button" id="lightbox-download" class="secondary">下载当前图片</button>
+    </div>
   </div>
 
   <script src="./app.js"></script>

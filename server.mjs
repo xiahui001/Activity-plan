@@ -425,7 +425,133 @@ async function callArkChat(messages, responseFormat = "json_object") {
   return content;
 }
 
-async function generateArkImage(prompt) {
+function parseJsonContent(content) {
+  try {
+    return JSON.parse(content);
+  } catch {
+    const match = String(content || "").match(/\{[\s\S]*\}/);
+    if (!match) {
+      return {};
+    }
+    return JSON.parse(match[0]);
+  }
+}
+
+function cleanTextField(value, fallback, maxLength) {
+  const text = String(value || "").replace(/\s+/g, " ").trim();
+  if (!text) {
+    return fallback;
+  }
+  return text.slice(0, maxLength);
+}
+
+function cleanHexColor(value, fallback) {
+  const text = String(value || "").trim();
+  return /^#[0-9a-f]{6}$/i.test(text) ? text : fallback;
+}
+
+async function generateActivityFields(request, response) {
+  if (!requireArkKey(response)) {
+    return;
+  }
+
+  let payload;
+  try {
+    payload = await readJsonBody(request);
+  } catch {
+    json(response, 400, { error: "请求体不是有效 JSON。" });
+    return;
+  }
+
+  const title = cleanTextField(payload.title, "", 40);
+  if (!title) {
+    json(response, 400, { error: "请先填写活动名称。" });
+    return;
+  }
+
+  const iteration = Number.parseInt(payload.iteration, 10) || 1;
+  const currentContext = {
+    title,
+    subtitle: cleanTextField(payload.subtitle, "", 80),
+    date: cleanTextField(payload.date, "", 40),
+    time: cleanTextField(payload.time, "", 40),
+    location: cleanTextField(payload.location, "", 80),
+    highlights: cleanTextField(payload.highlights, "", 140),
+    theme: cleanTextField(payload.theme, "", 40),
+    brandPrimary: cleanHexColor(payload.brandPrimary, "#ff8c61"),
+    brandAccent: cleanHexColor(payload.brandAccent, "#fff4d0"),
+    visualKeywords: cleanTextField(payload.visualKeywords, "", 120),
+    brandName: cleanTextField(payload.brandName, "", 40),
+    companyProfile: cleanTextField(payload.companyProfile, "", 220),
+    iteration,
+  };
+
+  const messages = [
+    {
+      role: "system",
+      content:
+        "你是资深活动策划总监与商业海报视觉创意总监。你必须基于用户给出的活动名称，生成可直接填入海报助手表单的中文字段。只输出 JSON，不要 Markdown，不要解释。",
+    },
+    {
+      role: "user",
+      content: [
+        "请为活动海报生成一版新的视觉与文案字段。",
+        `这是第 ${iteration} 次点击，请与上一版明显不同，换一个创意角度、风格词和色彩方向，但仍贴合活动名称。`,
+        "输出字段必须完整包含：subtitle、highlights、theme、brandPrimary、brandAccent、visualKeywords。",
+        "字段要求：",
+        "- subtitle：一句中文副标题，18-32 字，适合海报展示。",
+        "- highlights：设计方向，用 3-5 个短语组成，用 / 分隔。",
+        "- theme：风格预设名称，4-10 个中文字符，不要使用泛泛的“高级感”。",
+        "- brandPrimary 和 brandAccent：必须是 #RRGGBB 格式，且两者有明确对比。",
+        "- visualKeywords：5-8 个视觉关键词，用中文顿号分隔，具体到画面、材质、构图或氛围。",
+        "- 不要生成报名链接，不要要求用户提供报名链接。",
+        `当前上下文：${JSON.stringify(currentContext, null, 2)}`,
+      ].join("\n"),
+    },
+  ];
+
+  try {
+    const content = await callArkChat(messages);
+    const result = parseJsonContent(content);
+    json(response, 200, {
+      subtitle: cleanTextField(result.subtitle, `${title}，一次值得到场的城市体验`, 40),
+      highlights: cleanTextField(result.highlights, "主题视觉 / 互动体验 / 社交打卡 / 现场氛围", 80),
+      theme: cleanTextField(result.theme, "城市活动", 32),
+      brandPrimary: cleanHexColor(result.brandPrimary, currentContext.brandPrimary),
+      brandAccent: cleanHexColor(result.brandAccent, currentContext.brandAccent),
+      visualKeywords: cleanTextField(result.visualKeywords, "主标题、现场人群、互动装置、清晰信息、活动氛围", 80),
+    });
+  } catch (error) {
+    json(response, 500, {
+      error: `AI 字段生成失败：${String(error.message || error)}`,
+    });
+  }
+}
+
+function normalizeImageSize(value) {
+  const size = String(value || "").trim();
+  if (!size) {
+    return "2K";
+  }
+  if (["2K", "3K", "4K"].includes(size.toUpperCase())) {
+    return size.toUpperCase();
+  }
+  const match = size.match(/^(\d{3,5})x(\d{3,5})$/i);
+  if (!match) {
+    return "2K";
+  }
+  const width = Number.parseInt(match[1], 10);
+  const height = Number.parseInt(match[2], 10);
+  const pixels = width * height;
+  const ratio = width / height;
+  if (pixels < 2560 * 1440 || pixels > 4096 * 4096 || ratio < 1 / 16 || ratio > 16) {
+    return "2K";
+  }
+  return `${width}x${height}`;
+}
+
+async function generateArkImage(prompt, size = "2K") {
+  const imageSize = normalizeImageSize(size);
   const upstream = await fetch(`${ARK_BASE_URL}/images/generations`, {
     method: "POST",
     headers: {
@@ -435,9 +561,9 @@ async function generateArkImage(prompt) {
     body: JSON.stringify({
       model: ARK_IMAGE_MODEL,
       prompt,
-      size: "2K",
+      size: imageSize,
       response_format: "url",
-      watermark: true,
+      watermark: false,
     }),
   });
 
@@ -453,7 +579,7 @@ async function generateArkImage(prompt) {
     throw new Error("豆包图片模型未返回图片 URL 或图片数据。");
   }
 
-  return imageUrl ? { imageUrl } : { imageBase64, mimeType: "image/png" };
+  return imageUrl ? { imageUrl, size: imageSize } : { imageBase64, mimeType: "image/png", size: imageSize };
 }
 
 function buildThreeDPrompt(input, proposal) {
@@ -462,7 +588,7 @@ function buildThreeDPrompt(input, proposal) {
     ? `\n参考图信息：文件名 ${reference.name || ""}，类型 ${reference.type || ""}，大小 ${reference.size || ""} 字节。`
     : "";
   const brief = input?.threeD?.brief ? `\n3D 风格说明：${input.threeD.brief}` : "";
-  const title = proposal?.title || input?.themeDirection || "活动方案";
+  const title = proposal?.title || getActivityTitle(input, "活动方案");
   return `基于活动方案主题“${title}”生成一张 3D 美陈 / 包装参考图，适合用于路演汇报中的空间氛围展示。要求突出真实材质、结构层次、装置尺度、灯光氛围、品牌调性和可落地效果，不要文字水印，不要说明文字。画面要适合 16:9 PPT${brief}${referenceInfo}`;
 }
 
@@ -583,7 +709,7 @@ function sanitizeFileName(value) {
 }
 
 const PROPOSAL_SECTIONS = ["策划思路", "活动概览", "环节介绍", "活动宣传"];
-const MAX_PROPOSAL_SLIDES = 16;
+const MAX_PROPOSAL_SLIDES = 20;
 
 const PROPOSAL_SECTION_PLAN = [
   { page: 1, section: "策划思路", title: "封面" },
@@ -620,6 +746,47 @@ function normalizeSection(value, page = 1) {
   return getSectionPlan(page).section;
 }
 
+function getActivityTitle(input = {}, fallback = "活动方案") {
+  return input.eventTitle || input.themeDirection || input.themeOption || input.clientIndustry || fallback;
+}
+
+function sanitizeAttachmentForPrompt(attachment) {
+  if (!attachment) {
+    return null;
+  }
+  return {
+    uploaded: Boolean(attachment.dataUrl || attachment.name),
+    name: attachment.name || "",
+    type: attachment.type || "",
+    size: attachment.size || "",
+    label: attachment.label || "",
+  };
+}
+
+function createPromptInput(input = {}) {
+  return {
+    ...input,
+    keyVisual: input.keyVisual
+      ? {
+          ...input.keyVisual,
+          referenceImage: sanitizeAttachmentForPrompt(input.keyVisual.referenceImage),
+        }
+      : undefined,
+    venueMap: input.venueMap
+      ? {
+          ...input.venueMap,
+          referenceImage: sanitizeAttachmentForPrompt(input.venueMap.referenceImage),
+        }
+      : undefined,
+    threeD: input.threeD
+      ? {
+          ...input.threeD,
+          referenceImage: sanitizeAttachmentForPrompt(input.threeD.referenceImage),
+        }
+      : undefined,
+  };
+}
+
 function inferSlideArchetype(slide, index) {
   const page = Number(slide.page || index + 1);
   const title = `${slide.title || ""} ${slide.coreMessage || ""}`;
@@ -630,10 +797,10 @@ function inferSlideArchetype(slide, index) {
   if (/亮点|爆点|打卡/.test(title)) return "highlights";
   if (/流程|排期|时间|timeline/i.test(title)) return "timeline";
   if (/区域|动线|空间|规划/.test(title)) return "area-planning";
-  if (/舞美|美陈|舞台|3D|装置/.test(title)) return "stage-design";
+  if (/舞美|美陈|舞台|3D|装置|搭建|施工/.test(title)) return "stage-design";
   if (/物料|设备|清单/.test(title)) return "materials";
   if (/宣发|引流|传播|朋友圈/.test(title)) return "promotion";
-  if (/执行|人员|风险|预案|保障/.test(title)) return "execution-risk";
+  if (/执行|人员|风险|预案|保障|统筹|指挥/.test(title)) return "execution-risk";
   if (/预算|报价|效果|预期/.test(title)) return "budget-effect";
   return page % 2 === 0 ? "content-split" : "content-cards";
 }
@@ -680,6 +847,9 @@ function normalizeSlides(proposal, templatePreset = resolveTemplatePreset(propos
     layoutHint: String(slide.layoutHint || "").trim(),
     executionNotes: String(slide.executionNotes || "").trim(),
     visualPriority: Boolean(slide.visualPriority),
+    archetype: String(slide.archetype || "").trim(),
+    layoutVariant: String(slide.layoutVariant || "").trim(),
+    mimeType: slide.mimeType || "",
     imageUrl: slide.imageUrl || "",
     imageBase64: slide.imageBase64 || "",
     imageError: slide.imageError || "",
@@ -777,14 +947,30 @@ JSON Schema：
 }
 
 function buildProposalTextPrompt(input) {
+  const promptInput = createPromptInput(input);
+  const activityTitle = getActivityTitle(input, "按用户输入");
+  const selectedOutputs = [
+    input?.outputOptions?.includeBuildPlan ? "活动搭建方案" : "",
+    input?.outputOptions?.includeRunbookPlan ? "活动统筹方案" : "",
+  ].filter(Boolean);
+  const attachmentNotes = [
+    input?.keyVisual?.referenceImage ? `已上传活动主 KV / 主视觉图：${input.keyVisual.referenceImage.name || "未命名图片"}，封面和主视觉调性必须优先沿用该图。` : "",
+    input?.venueMap?.referenceImage ? `已上传场地图 / 场地平面图：${input.venueMap.referenceImage.name || "未命名图片"}，区域规划、动线设计和搭建方案必须参考该场地条件。` : "",
+  ].filter(Boolean);
   return `
 你是资深活动策划总监、甲方提案 PPT 内容策划师、舞美美陈执行顾问。请基于用户输入，生成一份可直接给甲方路演汇报的活动方案。
 
 用户输入：
-${JSON.stringify(input, null, 2)}
+${JSON.stringify(promptInput, null, 2)}
+
+关键附件：
+${attachmentNotes.length ? attachmentNotes.map((item) => `- ${item}`).join("\n") : "- 暂无上传附件，按文字输入生成。"}
+
+输出选项：
+${selectedOutputs.length ? selectedOutputs.map((item) => `- 需要额外生成：${item}`).join("\n") : "- 不额外扩展搭建/统筹专项页。"}
 
 公司能力背书：
-公司主营活动策划，舞美搭建执行拥有自有搭建团队，可承接美陈类、会议类物料搭建、展会搭建，并配备自有舞台活动设备。方案需要自然体现策划、设计、搭建、设备、执行、人员统筹、现场保障的一体化交付能力。
+公司主营活动策划，舞美搭建执行拥有自有搭建团队，可承接美陈类、会议类物料搭建、展会搭建，并配备自有舞台活动设备。公司能力背书只在封面、项目理解/公司能力页或执行保障页集中出现，不要在后续每一页反复堆叠。
 
 活动号类型约束：
 1. 美业大健康微商活动号：美业峰会、招商会、私域会销、品牌沙龙，重点突出转化、成交、私域裂变、品牌势能。
@@ -810,7 +996,7 @@ STYLE_RATIONALE: 为什么采用该提案风格
 1. 策划思路 / 封面
 2. 策划思路 / 项目理解
 3. 策划思路 / 策划策略与主题方向
-4. 活动概览 / 活动概况，必须包含：活动主题=${input.themeDirection || "按用户输入"}；活动时间=${input.eventTime || "按用户输入"}；活动地点=${input.eventLocation || "按用户输入"}；活动对象=${input.targetAudience || "按用户输入"}；活动形式=${input.activityForm || "按用户输入"}；活动执行=${input.activityExecution || "按用户输入"}
+4. 活动概览 / 活动概况，必须包含：活动主题=${activityTitle}；活动时间=${input.eventTime || "按用户输入"}；活动地点=${input.eventLocation || "按用户输入"}；活动对象=${input.targetAudience || "按用户输入"}；活动形式=${input.activityForm || "按用户输入"}；活动执行=${input.activityExecution || "按用户输入"}
 5. 活动概览 / 活动概况总结，必须用一页把活动定位、甲方价值、人群体验、现场交付和预期收益总结成可路演表达
 6. 活动概览 / 主题创意与活动亮点
 7. 活动概览 / 区域规划与动线设计
@@ -820,6 +1006,8 @@ STYLE_RATIONALE: 为什么采用该提案风格
 11. 活动宣传 / 宣发引流方案
 12. 活动宣传 / 执行保障与风险预案
 13. 活动宣传 / 报价/预算框架与预期效果
+${input?.outputOptions?.includeBuildPlan ? "14. 环节介绍 / 活动搭建方案，必须包含舞台/美陈/物料/设备/搭建排期/落地标准，并给出可生成搭建效果图的 IMAGE_PROMPT" : ""}
+${input?.outputOptions?.includeRunbookPlan ? `${input?.outputOptions?.includeBuildPlan ? "15" : "14"}. 活动宣传 / 活动统筹方案，必须包含统筹机制、岗位分工、沟通链路、节点排期、现场指挥和风险响应，并给出可生成统筹流程图/现场指挥图的 IMAGE_PROMPT` : ""}
 
 每页必须使用如下格式：
 ===SLIDE 1===
@@ -849,6 +1037,14 @@ function buildTemplateAwareProposalPrompt(input, stage, templatePreset) {
     stage === "preview"
       ? "当前为草稿预览阶段：仍需输出完整 13 页以上、四章节结构，但只把最适合视觉确认的 3 页设置为 VISUAL_PRIORITY: true，其余页面保留详细 IMAGE_PROMPT 占位。重点验证主题、策略、PPT模板方向和主视觉调性。"
       : "当前为正式出稿阶段：基于已确认方向输出可直接路演汇报的完整 13-16 页四章节方案。每页内容必须更具体、更像甲方汇报稿；每页都要给足可生成图片的 IMAGE_PROMPT。第 4/7/9/10/11 页附近要强化宏大场景布置、舞美美陈、打卡装置、动线氛围和空间尺度，便于后续生成 2-4 张场景效果图。";
+  const selectedOutputInstruction = [
+    input?.outputOptions?.includeBuildPlan
+      ? "用户勾选了“生成活动搭建方案”：必须增加或强化活动搭建专项页，内容包含舞台、美陈、物料、设备、施工排期、落地标准，并提供搭建效果图提示词。"
+      : "",
+    input?.outputOptions?.includeRunbookPlan
+      ? "用户勾选了“生成活动统筹方案”：必须增加或强化活动统筹专项页，内容包含统筹机制、岗位分工、沟通链路、节点排期、现场指挥和风险预案，并提供统筹流程/现场指挥图提示词。"
+      : "",
+  ].filter(Boolean);
   const templateInstruction = `
 PPT 模板预设：
 - 模板名称：${templatePreset.name}
@@ -873,8 +1069,9 @@ ${draft}
 额外要求：
 - 全部页面必须标注 SECTION，且只能属于：策划思路、活动概览、环节介绍、活动宣传。
 - 每页内容必须服务于甲方决策，不要泛泛而谈。
-- 舞美搭建、美陈、会议物料、展会搭建、自有舞台设备和自有执行团队能力要自然融入方案。
+- 舞美搭建、美陈、会议物料、展会搭建、自有舞台设备和自有执行团队能力只在封面、项目理解、执行保障或专项页集中体现，普通内容页不要反复堆叠公司介绍。
 - 图片提示词必须描述画面主体、空间、材质、灯光、构图、情绪、镜头语言和“无文字水印”，适合 16:9 PPT。
+${selectedOutputInstruction.map((item) => `- ${item}`).join("\n")}
 `;
 
   return `${templateInstruction}\n\n${buildProposalTextPrompt(input)}`;
@@ -943,9 +1140,28 @@ function parseProposalText(content) {
   };
 }
 
-function selectSlidesForImageGeneration(slides, stage) {
+function isSelectedOutputSlide(slide, input = {}) {
+  const text = `${slide.optionalOutputKind || ""} ${slide.title || ""} ${slide.coreMessage || ""} ${
+    slide.executionNotes || ""
+  }`;
+  if (
+    input?.outputOptions?.includeBuildPlan &&
+    /build-plan|活动搭建方案|搭建专项|施工搭建|搭建|施工/.test(text)
+  ) {
+    return true;
+  }
+  if (
+    input?.outputOptions?.includeRunbookPlan &&
+    /runbook-plan|活动统筹方案|统筹专项|执行统筹|统筹|指挥/.test(text)
+  ) {
+    return true;
+  }
+  return false;
+}
+
+function selectSlidesForImageGeneration(slides, stage, input = {}) {
   const candidates = slides
-    .filter((slide) => slide.imagePrompt)
+    .filter((slide) => slide.imagePrompt && !slide.imageBase64 && !slide.imageUrl)
     .map((slide, index) => ({ slide, index }))
     .sort((a, b) => {
       const scoreDiff = (b.slide.visualPriorityScore || 0) - (a.slide.visualPriorityScore || 0);
@@ -954,10 +1170,31 @@ function selectSlidesForImageGeneration(slides, stage) {
     .map((item) => item.slide);
 
   if (stage === "preview") {
-    return candidates.slice(0, 3);
+    const selectedOutputSlides = candidates.filter((slide) => isSelectedOutputSlide(slide, input));
+    const regularSlides = candidates.filter((slide) => !isSelectedOutputSlide(slide, input));
+    return [...selectedOutputSlides, ...regularSlides].slice(0, 3);
   }
 
-  return slides.filter((slide) => slide.imagePrompt);
+  if (input?.outputOptions?.generateAllImages) {
+    return slides.filter((slide) => slide.imagePrompt && !slide.imageBase64 && !slide.imageUrl);
+  }
+
+  const optionalPatterns = [];
+  if (input?.outputOptions?.includeBuildPlan) {
+    optionalPatterns.push(/活动搭建方案|搭建|施工/);
+  }
+  if (input?.outputOptions?.includeRunbookPlan) {
+    optionalPatterns.push(/活动统筹方案|统筹|指挥/);
+  }
+
+  return slides.filter(
+    (slide) =>
+      slide.imagePrompt &&
+      !slide.imageBase64 &&
+      !slide.imageUrl &&
+      (isSelectedOutputSlide(slide, input) ||
+        optionalPatterns.some((pattern) => pattern.test(`${slide.title || ""} ${slide.coreMessage || ""}`)))
+  );
 }
 
 function isSceneEffectSlide(slide) {
@@ -981,11 +1218,12 @@ function selectSceneEffectSlides(slides) {
 
 function buildSceneEffectPrompts(slide, input, proposal, templatePreset) {
   const activityPromptPreset = resolveActivityPromptPreset(input);
-  const activity = input?.themeDirection || proposal?.theme || proposal?.title || "活动方案";
+  const activity = getActivityTitle(input, proposal?.theme || proposal?.title || "活动方案");
   const place = input?.eventLocation || input?.venueType || "活动现场";
   const style = `${templatePreset.name}风格，宏大场景布置，舞美搭建和美陈装置可落地`;
   const sceneFocus = activityPromptPreset.sceneFocus || [];
-  const base = `活动号：${activityPromptPreset.name}；主题：${activity}；地点：${place}；页面：${slide.title}；${style}；16:9，真实材质，电影级灯光，空间层次丰富，现场人流尺度清晰，无文字水印。风格基准：${activityPromptPreset.imagePromptTemplate}`;
+  const mapNote = input?.venueMap?.referenceImage ? `；已上传场地图 ${input.venueMap.referenceImage.name || ""}，空间动线和搭建尺度需参考场地条件` : "";
+  const base = `活动号：${activityPromptPreset.name}；主题：${activity}；地点：${place}；页面：${slide.title}；${style}${mapNote}；16:9，真实材质，电影级灯光，空间层次丰富，现场人流尺度清晰，无文字水印。风格基准：${activityPromptPreset.imagePromptTemplate}`;
 
   return [
     `${base} 生成一张全景主效果图：${sceneFocus[0] || "大场景空间布置"}，主舞台/中庭/主入口整体氛围、灯光矩阵、品牌装置和观众动线，广角镜头，宏大、震撼、适合甲方汇报。`,
@@ -999,10 +1237,20 @@ function attachScenePrompts(proposal, input, stage, templatePreset) {
   if (stage !== "final") {
     return proposal.slides;
   }
+  if (
+    input?.outputOptions &&
+    !input.outputOptions.generateAllImages &&
+    (input.outputOptions.includeBuildPlan || input.outputOptions.includeRunbookPlan)
+  ) {
+    return proposal.slides;
+  }
 
   const sceneSlides = new Set(selectSceneEffectSlides(proposal.slides).map((slide) => slide.page));
   return proposal.slides.map((slide) => {
     if (!sceneSlides.has(slide.page)) {
+      return slide;
+    }
+    if (Number(slide.page) === 7 && slide.imageBase64) {
       return slide;
     }
 
@@ -1032,8 +1280,9 @@ async function generateSceneImagesForSlides(slides) {
 }
 
 function buildEventOverviewBody(input = {}, activity = "活动方案") {
+  const title = getActivityTitle(input, activity);
   return [
-    `活动主题：${input?.themeDirection || activity}`,
+    `活动主题：${title}`,
     `活动时间：${input?.eventTime || "待甲方确认"}`,
     `活动地点：${input?.eventLocation || input?.venueType || "待甲方确认"}`,
     `活动对象：${input?.targetAudience || "按甲方目标人群细化"}`,
@@ -1043,8 +1292,9 @@ function buildEventOverviewBody(input = {}, activity = "活动方案") {
 }
 
 function buildEventOverviewSummaryBody(input = {}, activity = "活动方案") {
+  const title = getActivityTitle(input, activity);
   return [
-    `活动定位：以「${input?.themeDirection || activity}」作为甲方对外表达和现场体验的统一抓手`,
+    `活动定位：以「${title}」作为甲方对外表达和现场体验的统一抓手`,
     `甲方价值：围绕${input?.eventObjective || "品牌传播、现场转化和用户体验"}建立可汇报、可传播、可复盘的活动结果`,
     `人群体验：面向${input?.targetAudience || "目标人群"}设计从到场、参与、拍摄到分享的完整路径`,
     `现场交付：以${input?.activityForm || "主题活动"}为主线，串联舞美搭建、美陈装置、物料设备和执行保障`,
@@ -1053,7 +1303,7 @@ function buildEventOverviewSummaryBody(input = {}, activity = "活动方案") {
 }
 
 function enforceProposalSectionPlan(slides, input, proposal) {
-  const activity = input?.themeDirection || input?.clientIndustry || proposal?.theme || "活动方案";
+  const activity = getActivityTitle(input, proposal?.theme || "活动方案");
   return slides.map((slide, index) => {
     const page = index + 1;
     const pagePlan = getSectionPlan(page);
@@ -1069,6 +1319,7 @@ function enforceProposalSectionPlan(slides, input, proposal) {
         title: pagePlan.title,
         coreMessage: slide.coreMessage || "把甲方最关心的基本信息先讲清楚",
         body: [...overviewBody, ...extraBody].slice(0, 8),
+        layoutVariant: "event-overview",
       };
     }
     if (page === 5) {
@@ -1080,6 +1331,7 @@ function enforceProposalSectionPlan(slides, input, proposal) {
         title: pagePlan.title,
         coreMessage: slide.coreMessage || "用一页把活动概况转化成甲方能听懂的价值结论",
         body: summaryBody,
+        layoutVariant: "event-overview-summary",
       };
     }
 
@@ -1093,7 +1345,7 @@ function enforceProposalSectionPlan(slides, input, proposal) {
 }
 
 function buildFallbackSlide(page, input, proposal, templatePreset) {
-  const activity = input?.themeDirection || input?.clientIndustry || proposal?.theme || "活动方案";
+  const activity = getActivityTitle(input, proposal?.theme || "活动方案");
   const capability = input?.companyCapability || "活动策划、舞美搭建、自有设备执行";
   const pagePlan = getSectionPlan(page);
   const eventOverviewBody = buildEventOverviewBody(input, activity);
@@ -1111,7 +1363,7 @@ function buildFallbackSlide(page, input, proposal, templatePreset) {
     2: {
       title: "项目理解",
       coreMessage: "先把甲方真正要的结果说清楚",
-      body: ["活动目标拆解", "目标人群与场景判断", "品牌与传播诉求", "执行边界与资源条件"],
+      body: ["活动目标拆解", "目标人群与场景判断", "品牌与传播诉求", `公司能力背书：${capability}`],
       imagePrompt: `项目理解页概念图，体现活动策划分析、目标拆解和甲方视角，信息图风格，16:9，商务质感，无文字水印。`,
       archetype: "project-understanding",
       layoutVariant: "text-left-visual-right",
@@ -1132,7 +1384,7 @@ function buildFallbackSlide(page, input, proposal, templatePreset) {
       imagePrompt: `活动概况页视觉，主题是${activity}，体现活动时间、地点、对象、形式和执行路径的清晰汇报感，结合活动现场概览、动线、主视觉和核心信息卡片，16:9，大气专业，无文字水印。`,
       visualPriority: true,
       archetype: "project-understanding",
-      layoutVariant: "cards",
+      layoutVariant: "event-overview",
     },
     5: {
       title: "活动概况总结",
@@ -1140,7 +1392,7 @@ function buildFallbackSlide(page, input, proposal, templatePreset) {
       body: eventOverviewSummaryBody,
       imagePrompt: `活动概况总结页视觉，主题是${activity}，用高端汇报感信息卡总结活动定位、甲方价值、人群体验、现场交付和预期收益，16:9，无文字水印。`,
       archetype: "strategy",
-      layoutVariant: "cards",
+      layoutVariant: "event-overview-summary",
     },
     6: {
       title: "主题创意与活动亮点",
@@ -1234,6 +1486,156 @@ function buildFallbackSlide(page, input, proposal, templatePreset) {
     threeDFileUrl: "",
     threeDStatus: "",
   };
+}
+
+function hasSlideLike(slides, pattern) {
+  return slides.some((slide) => pattern.test(`${slide.title || ""} ${slide.coreMessage || ""}`));
+}
+
+function buildOutputOptionSlide(kind, page, input, proposal, templatePreset) {
+  const activity = getActivityTitle(input, proposal?.theme || "活动方案");
+  const place = input?.eventLocation || input?.venueType || "活动现场";
+  const mapNote = input?.venueMap?.referenceImage
+    ? `已上传场地图：${input.venueMap.referenceImage.name || "场地参考图"}，需按场地条件规划。`
+    : "未上传场地图，按文字场地条件规划。";
+
+  if (kind === "build") {
+    const basePrompt = `活动搭建方案效果图，主题是${activity}，地点是${place}，体现主舞台搭建、美陈装置、DP点、导视物料、灯光音响、施工动线和落地验收标准，${templatePreset.name}风格，宏大场景布置，真实材质，空间尺度清晰，16:9，无文字水印。${mapNote}`;
+    return {
+      page,
+      section: "环节介绍",
+      title: "活动搭建方案",
+      coreMessage: "把设计效果拆成可施工、可验收、可交付的搭建系统",
+      body: [
+        "搭建范围：主舞台、签到区、美陈装置、DP 点、导视物料、灯光音响与基础结构",
+        "施工节奏：进场测量、结构搭建、画面安装、设备调试、彩排验收、撤场复原",
+        "落地标准：结构安全、材质统一、动线清晰、设备稳定、拍摄机位预留",
+        `场地依据：${mapNote}`,
+      ],
+      imagePrompt: basePrompt,
+      scenePrompts: [
+        `${basePrompt} 生成一张搭建完成后的主舞台与观众区全景效果图。`,
+        `${basePrompt} 生成一张美陈装置/DP点/签到区组合效果图，强调材质、结构和人流尺度。`,
+      ],
+      layoutHint: "搭建范围 + 施工节奏 + 效果图组合",
+      executionNotes: "用于生产沟通和搭建团队拆解，不只是概念展示。",
+      visualPriority: true,
+      archetype: "stage-design",
+      layoutVariant: "visual-board",
+      optionalOutputKind: "build-plan",
+    };
+  }
+
+  const basePrompt = `活动统筹方案信息图，主题是${activity}，地点是${place}，体现项目统筹中台、岗位分工、时间排期、现场指挥链路、摄影摄像调度、应急响应和执行看板，${templatePreset.name}风格，专业项目管理视觉，16:9，无文字水印。`;
+  return {
+    page,
+    section: "活动宣传",
+    title: "活动统筹方案",
+    coreMessage: "把人员、时间、物料、舞台和传播统一到一张现场指挥图里",
+    body: [
+      "统筹机制：总控统筹、舞台监督、搭建负责人、物料负责人、摄影摄像、客户对接分工明确",
+      "节点排期：前期筹备、物料确认、进场搭建、彩排验收、正式执行、撤场复盘",
+      "现场指挥：建立主控台、对讲频道、应急联系人和关键节点确认机制",
+      "风险响应：天气/设备/人员/安全/客诉均需预留替代方案和责任人",
+    ],
+    imagePrompt: basePrompt,
+    scenePrompts: [
+      `${basePrompt} 生成一张现场总控台与执行团队调度场景图。`,
+      `${basePrompt} 生成一张活动统筹时间轴与人员分工可视化图，商务汇报质感。`,
+    ],
+    layoutHint: "统筹中台 + 岗位分工 + 节点排期",
+    executionNotes: "用于活动执行统筹和甲方确认现场管理方式。",
+    visualPriority: true,
+    archetype: "execution-risk",
+    layoutVariant: "horizontal-process",
+    optionalOutputKind: "runbook-plan",
+  };
+}
+
+function appendSelectedOutputSlides(slides, input, proposal, templatePreset) {
+  const outputOptions = input?.outputOptions || {};
+  const nextSlides = [...slides];
+  const reservedSlides =
+    Number(Boolean(outputOptions.includeBuildPlan)) + Number(Boolean(outputOptions.includeRunbookPlan));
+
+  if (reservedSlides && nextSlides.length > MAX_PROPOSAL_SLIDES - reservedSlides) {
+    nextSlides.length = MAX_PROPOSAL_SLIDES - reservedSlides;
+  }
+
+  if (outputOptions.includeBuildPlan && !hasSlideLike(nextSlides, /活动搭建方案|搭建专项|施工搭建/)) {
+    nextSlides.push(buildOutputOptionSlide("build", nextSlides.length + 1, input, proposal, templatePreset));
+  }
+
+  if (outputOptions.includeRunbookPlan && !hasSlideLike(nextSlides, /活动统筹方案|统筹专项|执行统筹/)) {
+    nextSlides.push(buildOutputOptionSlide("runbook", nextSlides.length + 1, input, proposal, templatePreset));
+  }
+
+  return nextSlides.slice(0, MAX_PROPOSAL_SLIDES).map((slide, index) => ({
+    ...slide,
+    page: index + 1,
+  }));
+}
+
+function applyUserDeckMetadata(proposal, input = {}) {
+  if (input.eventTitle) {
+    proposal.theme = input.eventTitle;
+    if (!proposal.title || /方案总标题|活动方案/.test(proposal.title)) {
+      proposal.title = `${input.eventTitle}活动方案`;
+    }
+  }
+  if (input.eventSubtitle && !proposal.subtitle) {
+    proposal.subtitle = input.eventSubtitle;
+  }
+  if (input.proposalStyle) {
+    proposal.proposalStyle = input.proposalStyle;
+  }
+  return proposal;
+}
+
+function imageFieldsFromDataUrl(referenceImage) {
+  const dataUrl = referenceImage?.dataUrl || "";
+  const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
+  if (!match) {
+    return null;
+  }
+  return {
+    imageBase64: match[2],
+    mimeType: match[1],
+  };
+}
+
+function attachUploadedReferenceImages(proposal, input) {
+  const keyVisual = imageFieldsFromDataUrl(input?.keyVisual?.referenceImage);
+  if (keyVisual) {
+    proposal.keyVisual = {
+      uploaded: true,
+      name: input.keyVisual.referenceImage.name || "",
+      type: keyVisual.mimeType,
+    };
+    const coverSlide = proposal.slides.find((slide) => Number(slide.page) === 1) || proposal.slides[0];
+    if (coverSlide) {
+      coverSlide.imageBase64 = keyVisual.imageBase64;
+      coverSlide.mimeType = keyVisual.mimeType;
+      coverSlide.imageUrl = "";
+      coverSlide.imagePrompt = `${coverSlide.imagePrompt || ""}\n已上传活动主 KV，封面优先使用该主视觉。`.trim();
+    }
+  }
+
+  const venueMap = imageFieldsFromDataUrl(input?.venueMap?.referenceImage);
+  if (venueMap) {
+    proposal.venueMap = {
+      uploaded: true,
+      name: input.venueMap.referenceImage.name || "",
+      type: venueMap.mimeType,
+    };
+    const areaSlide = proposal.slides.find((slide) => Number(slide.page) === 7);
+    if (areaSlide) {
+      areaSlide.imageBase64 = venueMap.imageBase64;
+      areaSlide.mimeType = venueMap.mimeType;
+      areaSlide.imageUrl = "";
+      areaSlide.imagePrompt = `${areaSlide.imagePrompt || ""}\n已上传场地图，区域规划页优先使用该场地参考图。`.trim();
+    }
+  }
 }
 
 function ensurePlannedSlides(proposal, input, templatePreset) {
@@ -1367,7 +1769,9 @@ function getProposalJob(request, response) {
 
 async function buildProposalFromPayload(payload, onProgress = () => {}) {
   const input = payload.input || {};
-  const generateImages = Boolean(payload.generateImages);
+  const generateImages = Boolean(
+    payload.generateImages || input?.outputOptions?.includeBuildPlan || input?.outputOptions?.includeRunbookPlan
+  );
   const stage = resolveGenerationStage(payload, input);
   const templatePreset = resolveTemplatePreset(input);
 
@@ -1408,6 +1812,7 @@ async function buildProposalFromPayload(payload, onProgress = () => {}) {
 
   onProgress({ progress: 42, message: "文本方案已返回，正在解析页纲和章节" });
   const proposal = parseProposalText(content);
+  applyUserDeckMetadata(proposal, input);
   proposal.templatePreset = publicTemplatePreset(templatePreset);
   proposal.activityPromptPreset = publicActivityPromptPreset(resolveActivityPromptPreset(input));
   proposal.stage = stage;
@@ -1417,6 +1822,8 @@ async function buildProposalFromPayload(payload, onProgress = () => {}) {
     page: index + 1,
   }));
   proposal.slides = enforceProposalSectionPlan(proposal.slides, input, proposal);
+  proposal.slides = appendSelectedOutputSlides(proposal.slides, input, proposal, templatePreset);
+  attachUploadedReferenceImages(proposal, input);
   proposal.slides = applyVisualPriorityLimit(proposal.slides, stage);
   proposal.slides = attachScenePrompts(proposal, input, stage, templatePreset);
 
@@ -1427,7 +1834,7 @@ async function buildProposalFromPayload(payload, onProgress = () => {}) {
   onProgress({ progress: 55, message: `已形成 ${proposal.slides.length} 页结构，正在处理视觉内容` });
 
   if (generateImages) {
-    const slidesToGenerate = selectSlidesForImageGeneration(proposal.slides, stage);
+    const slidesToGenerate = selectSlidesForImageGeneration(proposal.slides, stage, input);
     const imageStart = stage === "preview" ? 58 : 55;
     const imageEnd = stage === "preview" ? 88 : 75;
 
@@ -1554,12 +1961,40 @@ async function generateImage(request, response) {
     return;
   }
 
+  const requestedSize = normalizeImageSize(payload.size || "2K");
+
   try {
-    const image = await generateArkImage(prompt);
+    let image;
+    try {
+      image = await generateArkImage(prompt, requestedSize);
+    } catch (error) {
+      if (requestedSize === "2K") {
+        throw error;
+      }
+      image = await generateArkImage(prompt, "2K");
+      image.sizeFallbackFrom = requestedSize;
+    }
+    if (image.imageUrl) {
+      try {
+        const dataUri = await imageToDataUri(image.imageUrl);
+        const match = dataUri.match(/^data:([^;]+);base64,(.+)$/);
+        if (match) {
+          image = {
+            ...image,
+            sourceImageUrl: image.imageUrl,
+            imageUrl: "",
+            mimeType: match[1],
+            imageBase64: match[2],
+          };
+        }
+      } catch {
+        // Keep the URL response if the provider URL cannot be re-fetched server-side.
+      }
+    }
     json(response, 200, {
       ...image,
       model: ARK_IMAGE_MODEL,
-      size: "2K",
+      size: image.size || requestedSize,
     });
   } catch (error) {
     json(response, 500, {
@@ -1990,6 +2425,564 @@ function addExecutionNote(slide, pptx, item, box, palette) {
   });
 }
 
+function splitLabelValue(text) {
+  const raw = String(text || "").trim();
+  const colonIndex = raw.search(/[：:]/);
+  if (colonIndex < 0) {
+    return { label: "", value: raw };
+  }
+  return {
+    label: raw.slice(0, colonIndex).trim(),
+    value: raw.slice(colonIndex + 1).trim(),
+  };
+}
+
+function getLabeledItems(item, fallbackLabels = []) {
+  const body = Array.isArray(item.body) ? item.body : [];
+  return body.map((line, index) => {
+    const parsed = splitLabelValue(line);
+    return {
+      label: parsed.label || fallbackLabels[index] || `要点 ${index + 1}`,
+      value: parsed.value || String(line || "").trim(),
+    };
+  });
+}
+
+function addOverviewCard(slide, pptx, entry, box, palette, options = {}) {
+  slide.addShape(pptx.ShapeType.roundRect, {
+    ...box,
+    rectRadius: options.radius || 0.08,
+    fill: { color: options.fill || palette.surface },
+    line: { color: options.line || palette.line },
+  });
+  if (options.indexLabel) {
+    addWrappedText(slide, options.indexLabel, {
+      x: box.x + 0.18,
+      y: box.y + 0.16,
+      w: 0.52,
+      h: 0.22,
+      fontSize: options.indexSize || 9.5,
+      bold: true,
+      color: options.indexColor || palette.accent,
+    });
+  }
+  addWrappedText(slide, entry.label, {
+    x: box.x + 0.24 + (options.indexLabel ? 0.45 : 0),
+    y: box.y + 0.16,
+    w: box.w - 0.48 - (options.indexLabel ? 0.45 : 0),
+    h: 0.22,
+    fontSize: options.labelSize || 8.6,
+    bold: true,
+    color: options.labelColor || palette.accent,
+  });
+  addWrappedText(slide, entry.value, {
+    x: box.x + 0.24,
+    y: box.y + (options.valueY || 0.52),
+    w: box.w - 0.48,
+    h: box.h - (options.valueY || 0.52) - 0.18,
+    fontSize: options.valueSize || 9.8,
+    bold: Boolean(options.valueBold),
+    color: options.valueColor || palette.deep,
+  });
+}
+
+function addOverviewHeader(slide, item, palette, options = {}) {
+  addWrappedText(slide, String(item.page).padStart(2, "0"), {
+    x: options.x || 0.6,
+    y: options.y || 0.34,
+    w: 0.75,
+    h: 0.22,
+    fontSize: 8.8,
+    bold: true,
+    color: options.accentColor || palette.accent,
+  });
+  addWrappedText(slide, item.section || getSectionPlan(item.page).section, {
+    x: (options.x || 0.6) + 0.95,
+    y: options.y || 0.34,
+    w: 1.75,
+    h: 0.22,
+    fontSize: 8,
+    bold: true,
+    color: options.mutedColor || palette.muted,
+  });
+  addWrappedText(slide, item.title, {
+    x: options.x || 0.6,
+    y: (options.y || 0.34) + 0.44,
+    w: options.w || 6.4,
+    h: 0.48,
+    fontSize: options.fontSize || 22,
+    bold: true,
+    color: options.titleColor || palette.deep,
+  });
+  if (item.coreMessage) {
+    addWrappedText(slide, item.coreMessage, {
+      x: options.x || 0.6,
+      y: (options.y || 0.34) + 1.02,
+      w: options.coreW || options.w || 7.2,
+      h: 0.34,
+      fontSize: options.coreSize || 10.6,
+      bold: true,
+      color: options.coreColor || palette.accent,
+    });
+  }
+}
+
+function renderOverviewPremium(slide, pptx, item, templatePreset, palette, entries) {
+  slide.background = { color: palette.bg };
+  slide.addShape(pptx.ShapeType.rect, {
+    x: 12.72,
+    y: 0,
+    w: 0.22,
+    h: 7.5,
+    fill: { color: palette.accent },
+    line: { color: palette.accent },
+  });
+  addOverviewHeader(slide, item, palette, { w: 6.8, coreW: 7.7 });
+  addWrappedText(slide, "EVENT BRIEF", {
+    x: 10.55,
+    y: 0.48,
+    w: 1.5,
+    h: 0.2,
+    fontSize: 7.2,
+    bold: true,
+    color: palette.muted,
+  });
+
+  const cards = entries.slice(0, 6);
+  const cardBoxes = [
+    { x: 0.72, y: 1.82, w: 3.75, h: 1.22 },
+    { x: 4.78, y: 1.82, w: 3.75, h: 1.22 },
+    { x: 8.84, y: 1.82, w: 3.25, h: 1.22 },
+    { x: 0.72, y: 3.3, w: 3.75, h: 1.26 },
+    { x: 4.78, y: 3.3, w: 3.75, h: 1.26 },
+    { x: 8.84, y: 3.3, w: 3.25, h: 1.26 },
+  ];
+  cards.forEach((entry, index) => {
+    addOverviewCard(slide, pptx, entry, cardBoxes[index], palette, {
+      indexLabel: `0${index + 1}`,
+      fill: index % 2 === 0 ? palette.surface : palette.soft,
+      valueSize: index === 5 ? 7.8 : 9.2,
+    });
+  });
+
+  slide.addShape(pptx.ShapeType.roundRect, {
+    x: 0.72,
+    y: 5.05,
+    w: 11.37,
+    h: 1.05,
+    rectRadius: 0.08,
+    fill: { color: palette.deep },
+    line: { color: palette.deep },
+  });
+  addWrappedText(slide, "汇报口径", {
+    x: 0.98,
+    y: 5.28,
+    w: 1.2,
+    h: 0.22,
+    fontSize: 8.6,
+    bold: true,
+    color: palette.accent,
+  });
+  addWrappedText(slide, item.coreMessage || "活动概况不是信息罗列，而是甲方决策的第一层判断。", {
+    x: 2.2,
+    y: 5.22,
+    w: 9.45,
+    h: 0.44,
+    fontSize: 11.2,
+    bold: true,
+    color: "FFFFFF",
+  });
+  addDeckFooter(slide, pptx, item, templatePreset, palette);
+}
+
+function renderOverviewCreative(slide, pptx, item, templatePreset, palette, entries) {
+  slide.background = { color: palette.bg };
+  slide.addShape(pptx.ShapeType.rect, {
+    x: 0,
+    y: 0,
+    w: 13.333,
+    h: 0.22,
+    fill: { color: palette.accent },
+    line: { color: palette.accent },
+  });
+  slide.addShape(pptx.ShapeType.rect, {
+    x: 9.8,
+    y: 0.22,
+    w: 3.0,
+    h: 6.6,
+    fill: { color: palette.soft },
+    line: { color: palette.soft },
+  });
+  addOverviewHeader(slide, item, palette, { w: 7.5, fontSize: 24, coreW: 7.65, coreColor: palette.accent });
+
+  const boxes = [
+    { x: 0.68, y: 1.78, w: 3.45, h: 1.48 },
+    { x: 4.38, y: 2.08, w: 3.45, h: 1.48 },
+    { x: 8.08, y: 1.78, w: 3.45, h: 1.48 },
+    { x: 0.68, y: 3.76, w: 3.45, h: 1.48 },
+    { x: 4.38, y: 4.06, w: 3.45, h: 1.48 },
+    { x: 8.08, y: 3.76, w: 3.45, h: 1.48 },
+  ];
+  entries.slice(0, 6).forEach((entry, index) => {
+    addOverviewCard(slide, pptx, entry, boxes[index], palette, {
+      fill: index % 2 === 0 ? palette.surface : palette.soft,
+      line: index % 2 === 0 ? palette.line : palette.accent2,
+      labelColor: palette.deep,
+      valueSize: index === 5 ? 7.8 : 9.1,
+    });
+    slide.addShape(pptx.ShapeType.rect, {
+      x: boxes[index].x,
+      y: boxes[index].y,
+      w: 0.12,
+      h: boxes[index].h,
+      fill: { color: index % 2 === 0 ? palette.accent : palette.accent2 },
+      line: { color: index % 2 === 0 ? palette.accent : palette.accent2 },
+    });
+  });
+  addDeckFooter(slide, pptx, item, templatePreset, palette);
+}
+
+function renderOverviewLogic(slide, pptx, item, templatePreset, palette, entries) {
+  slide.background = { color: palette.bg };
+  addOverviewHeader(slide, item, palette, { w: 7.9, coreW: 8.4, coreColor: palette.accent2 });
+  slide.addShape(pptx.ShapeType.roundRect, {
+    x: 8.88,
+    y: 0.42,
+    w: 3.65,
+    h: 0.82,
+    rectRadius: 0.06,
+    fill: { color: palette.deep },
+    line: { color: palette.deep },
+  });
+  addWrappedText(slide, "信息不是堆叠，而是决策链路", {
+    x: 9.12,
+    y: 0.64,
+    w: 3.15,
+    h: 0.28,
+    fontSize: 10.4,
+    bold: true,
+    color: "FFFFFF",
+  });
+
+  const boxes = [
+    { x: 0.74, y: 1.95, w: 3.72, h: 1.1 },
+    { x: 4.82, y: 1.95, w: 3.72, h: 1.1 },
+    { x: 8.9, y: 1.95, w: 3.2, h: 1.1 },
+    { x: 0.74, y: 3.52, w: 3.72, h: 1.1 },
+    { x: 4.82, y: 3.52, w: 3.72, h: 1.1 },
+    { x: 8.9, y: 3.52, w: 3.2, h: 1.1 },
+  ];
+  entries.slice(0, 6).forEach((entry, index) => {
+    addOverviewCard(slide, pptx, entry, boxes[index], palette, {
+      indexLabel: String(index + 1).padStart(2, "0"),
+      fill: palette.surface,
+      line: palette.line,
+      labelColor: palette.accent,
+      valueSize: index === 5 ? 7.6 : 8.8,
+    });
+  });
+  slide.addShape(pptx.ShapeType.rect, {
+    x: 0.74,
+    y: 5.2,
+    w: 11.36,
+    h: 0.04,
+    fill: { color: palette.accent },
+    line: { color: palette.accent },
+  });
+  addWrappedText(slide, "判断路径：基本信息 → 资源边界 → 体验路径 → 执行抓手", {
+    x: 0.8,
+    y: 5.45,
+    w: 8.6,
+    h: 0.3,
+    fontSize: 10.4,
+    bold: true,
+    color: palette.deep,
+  });
+  addDeckFooter(slide, pptx, item, templatePreset, palette);
+}
+
+function renderOverviewBrand(slide, pptx, item, templatePreset, palette, entries) {
+  slide.background = { color: palette.bg };
+  addOverviewHeader(slide, item, palette, { w: 7.2, coreW: 7.4, coreColor: palette.accent });
+  const [theme, time, location, audience, form, execution] = entries;
+  slide.addShape(pptx.ShapeType.roundRect, {
+    x: 0.72,
+    y: 1.72,
+    w: 5.2,
+    h: 3.15,
+    rectRadius: 0.1,
+    fill: { color: palette.deep },
+    line: { color: palette.deep },
+  });
+  addWrappedText(slide, theme?.label || "活动主题", {
+    x: 1.04,
+    y: 2.08,
+    w: 1.6,
+    h: 0.22,
+    fontSize: 8.5,
+    bold: true,
+    color: palette.accent2,
+  });
+  addWrappedText(slide, theme?.value || item.coreMessage || item.title, {
+    x: 1.04,
+    y: 2.52,
+    w: 4.55,
+    h: 1.0,
+    fontSize: 20,
+    bold: true,
+    color: "FFFFFF",
+  });
+  addWrappedText(slide, "把活动概况转译成可被记住的品牌现场。", {
+    x: 1.04,
+    y: 3.78,
+    w: 4.45,
+    h: 0.42,
+    fontSize: 10.6,
+    color: "FFFFFF",
+  });
+
+  [
+    { entry: time, x: 6.28, y: 1.72, w: 2.82, h: 1.34 },
+    { entry: location, x: 9.42, y: 1.72, w: 2.82, h: 1.34 },
+    { entry: audience, x: 6.28, y: 3.38, w: 2.82, h: 1.34 },
+    { entry: form, x: 9.42, y: 3.38, w: 2.82, h: 1.34 },
+  ].forEach(({ entry, ...box }, index) => {
+    addOverviewCard(slide, pptx, entry || { label: "信息", value: "待补充" }, box, palette, {
+      fill: index % 2 === 0 ? palette.surface : palette.soft,
+      valueSize: 8.2,
+    });
+  });
+  addOverviewCard(slide, pptx, execution || { label: "活动执行", value: "按现场执行闭环推进" }, {
+    x: 0.72,
+    y: 5.22,
+    w: 11.52,
+    h: 0.82,
+  }, palette, { fill: palette.surface, valueY: 0.46, valueSize: 8.2 });
+  addDeckFooter(slide, pptx, item, templatePreset, palette);
+}
+
+async function renderEventOverviewSlide(slide, pptx, item, templatePreset, palette) {
+  const entries = getLabeledItems(item, ["活动主题", "活动时间", "活动地点", "活动对象", "活动形式", "活动执行"]);
+  if (templatePreset.id === "creative-ceremony") {
+    renderOverviewCreative(slide, pptx, item, templatePreset, palette, entries);
+  } else if (templatePreset.id === "argument-logic") {
+    renderOverviewLogic(slide, pptx, item, templatePreset, palette, entries);
+  } else if (templatePreset.id === "brand-launch") {
+    renderOverviewBrand(slide, pptx, item, templatePreset, palette, entries);
+  } else {
+    renderOverviewPremium(slide, pptx, item, templatePreset, palette, entries);
+  }
+}
+
+function renderSummaryPremium(slide, pptx, item, templatePreset, palette, entries) {
+  slide.background = { color: palette.surface };
+  addOverviewHeader(slide, item, palette, { w: 7.6, coreW: 8.2 });
+  const first = entries[0] || { label: "活动定位", value: item.coreMessage || "" };
+  slide.addShape(pptx.ShapeType.roundRect, {
+    x: 0.72,
+    y: 1.72,
+    w: 4.15,
+    h: 4.2,
+    rectRadius: 0.1,
+    fill: { color: palette.deep },
+    line: { color: palette.deep },
+  });
+  addWrappedText(slide, first.label, {
+    x: 1.02,
+    y: 2.12,
+    w: 1.4,
+    h: 0.24,
+    fontSize: 8.6,
+    bold: true,
+    color: palette.accent,
+  });
+  addWrappedText(slide, first.value, {
+    x: 1.02,
+    y: 2.62,
+    w: 3.55,
+    h: 1.55,
+    fontSize: 15.2,
+    bold: true,
+    color: "FFFFFF",
+  });
+  addWrappedText(slide, "这一页只回答一个问题：甲方为什么应该相信这套活动方案。", {
+    x: 1.02,
+    y: 4.78,
+    w: 3.5,
+    h: 0.48,
+    fontSize: 9.6,
+    color: "FFFFFF",
+  });
+
+  entries.slice(1, 5).forEach((entry, index) => {
+    const col = index % 2;
+    const row = Math.floor(index / 2);
+    addOverviewCard(slide, pptx, entry, {
+      x: 5.22 + col * 3.5,
+      y: 1.72 + row * 2.08,
+      w: 3.12,
+      h: 1.68,
+    }, palette, {
+      fill: index % 2 === 0 ? palette.bg : palette.soft,
+      indexLabel: `0${index + 2}`,
+      valueSize: 8.4,
+    });
+  });
+  addDeckFooter(slide, pptx, item, templatePreset, palette);
+}
+
+function renderSummaryCreative(slide, pptx, item, templatePreset, palette, entries) {
+  slide.background = { color: palette.bg };
+  slide.addShape(pptx.ShapeType.rect, {
+    x: 0.58,
+    y: 1.48,
+    w: 12.15,
+    h: 4.92,
+    fill: { color: palette.soft },
+    line: { color: palette.soft },
+  });
+  addOverviewHeader(slide, item, palette, { w: 7.2, fontSize: 24, coreW: 7.8 });
+  const boxes = [
+    { x: 0.9, y: 1.86, w: 3.25, h: 1.28 },
+    { x: 4.95, y: 1.68, w: 3.25, h: 1.28 },
+    { x: 8.85, y: 1.98, w: 3.25, h: 1.28 },
+    { x: 2.15, y: 4.18, w: 3.25, h: 1.28 },
+    { x: 6.5, y: 4.0, w: 3.25, h: 1.28 },
+  ];
+  entries.slice(0, 5).forEach((entry, index) => {
+    addOverviewCard(slide, pptx, entry, boxes[index], palette, {
+      fill: index % 2 === 0 ? palette.surface : palette.bg,
+      line: index % 2 === 0 ? palette.accent : palette.accent2,
+      labelColor: palette.deep,
+      valueSize: 8.2,
+    });
+  });
+  addWrappedText(slide, "到场  →  参与  →  拍摄  →  分享  →  转化", {
+    x: 2.18,
+    y: 5.85,
+    w: 8.9,
+    h: 0.32,
+    fontSize: 13,
+    bold: true,
+    color: palette.accent,
+  });
+  addDeckFooter(slide, pptx, item, templatePreset, palette);
+}
+
+function renderSummaryLogic(slide, pptx, item, templatePreset, palette, entries) {
+  slide.background = { color: palette.bg };
+  addOverviewHeader(slide, item, palette, { w: 8.0, coreW: 8.8, coreColor: palette.accent2 });
+  addWrappedText(slide, "VALUE PROOF", {
+    x: 10.08,
+    y: 0.52,
+    w: 1.58,
+    h: 0.2,
+    fontSize: 7.4,
+    bold: true,
+    color: palette.accent,
+  });
+  entries.slice(0, 5).forEach((entry, index) => {
+    const x = 0.72 + index * 2.42;
+    const y = index % 2 === 0 ? 2.05 : 2.55;
+    addOverviewCard(slide, pptx, entry, { x, y, w: 2.08, h: 2.05 }, palette, {
+      fill: palette.surface,
+      line: index === 4 ? palette.accent2 : palette.line,
+      indexLabel: String(index + 1),
+      labelSize: 8.1,
+      valueSize: 7.5,
+    });
+    if (index < 4) {
+      slide.addShape(pptx.ShapeType.rect, {
+        x: x + 2.08,
+        y: y + 0.96,
+        w: 0.32,
+        h: 0.04,
+        fill: { color: palette.accent },
+        line: { color: palette.accent },
+      });
+    }
+  });
+  slide.addShape(pptx.ShapeType.roundRect, {
+    x: 0.72,
+    y: 5.35,
+    w: 11.55,
+    h: 0.72,
+    rectRadius: 0.06,
+    fill: { color: palette.deep },
+    line: { color: palette.deep },
+  });
+  addWrappedText(slide, "结论：活动概况页必须把“做什么”升级为“为什么值得做”。", {
+    x: 1.0,
+    y: 5.55,
+    w: 10.95,
+    h: 0.28,
+    fontSize: 10.8,
+    bold: true,
+    color: "FFFFFF",
+  });
+  addDeckFooter(slide, pptx, item, templatePreset, palette);
+}
+
+function renderSummaryBrand(slide, pptx, item, templatePreset, palette, entries) {
+  slide.background = { color: palette.bg };
+  addOverviewHeader(slide, item, palette, { w: 7.4, coreW: 7.8 });
+  slide.addShape(pptx.ShapeType.roundRect, {
+    x: 4.75,
+    y: 1.72,
+    w: 3.85,
+    h: 3.2,
+    rectRadius: 0.1,
+    fill: { color: palette.deep },
+    line: { color: palette.deep },
+  });
+  addWrappedText(slide, "BRAND FIELD", {
+    x: 5.18,
+    y: 2.14,
+    w: 1.6,
+    h: 0.22,
+    fontSize: 8.2,
+    bold: true,
+    color: palette.accent2,
+  });
+  addWrappedText(slide, item.coreMessage || "把活动做成品牌资产", {
+    x: 5.18,
+    y: 2.7,
+    w: 3.0,
+    h: 0.94,
+    fontSize: 17.5,
+    bold: true,
+    color: "FFFFFF",
+  });
+  const boxes = [
+    { x: 0.72, y: 1.72, w: 3.35, h: 1.22 },
+    { x: 9.28, y: 1.72, w: 3.35, h: 1.22 },
+    { x: 0.72, y: 4.0, w: 3.35, h: 1.22 },
+    { x: 9.28, y: 4.0, w: 3.35, h: 1.22 },
+    { x: 4.32, y: 5.35, w: 4.72, h: 0.76 },
+  ];
+  entries.slice(0, 5).forEach((entry, index) => {
+    addOverviewCard(slide, pptx, entry, boxes[index], palette, {
+      fill: index === 4 ? palette.soft : palette.surface,
+      valueY: index === 4 ? 0.42 : 0.5,
+      valueSize: index === 4 ? 7.6 : 8.0,
+    });
+  });
+  addDeckFooter(slide, pptx, item, templatePreset, palette);
+}
+
+async function renderEventOverviewSummarySlide(slide, pptx, item, templatePreset, palette) {
+  const entries = getLabeledItems(item, ["活动定位", "甲方价值", "人群体验", "现场交付", "预期收益"]);
+  if (templatePreset.id === "creative-ceremony") {
+    renderSummaryCreative(slide, pptx, item, templatePreset, palette, entries);
+  } else if (templatePreset.id === "argument-logic") {
+    renderSummaryLogic(slide, pptx, item, templatePreset, palette, entries);
+  } else if (templatePreset.id === "brand-launch") {
+    renderSummaryBrand(slide, pptx, item, templatePreset, palette, entries);
+  } else {
+    renderSummaryPremium(slide, pptx, item, templatePreset, palette, entries);
+  }
+}
+
 async function renderCoverSlide(slide, pptx, proposal, item, templatePreset, palette) {
   slide.background = { color: palette.deep };
   slide.addShape(pptx.ShapeType.rect, {
@@ -2261,7 +3254,12 @@ async function buildPptV2(response, proposal) {
   const slides = normalizeSlidesForDeck(proposal, templatePreset);
   for (const item of slides) {
     const slide = pptx.addSlide();
-    if (item.layoutVariant === "scene-gallery" || item.scenePrompts?.length) {
+    const pageNumber = Number(item.page);
+    if (pageNumber === 4 || item.layoutVariant === "event-overview") {
+      await renderEventOverviewSlide(slide, pptx, item, templatePreset, palette);
+    } else if (pageNumber === 5 || item.layoutVariant === "event-overview-summary") {
+      await renderEventOverviewSummarySlide(slide, pptx, item, templatePreset, palette);
+    } else if (item.layoutVariant === "scene-gallery" || item.scenePrompts?.length) {
       await renderSceneGallerySlide(slide, pptx, item, templatePreset, palette);
     } else if (item.layoutVariant === "cover-hero") {
       await renderCoverSlide(slide, pptx, proposal, item, templatePreset, palette);
@@ -2363,6 +3361,11 @@ const server = createServer(async (request, response) => {
 
   if (request.method === "POST" && request.url === "/api/generate-image") {
     await generateImage(request, response);
+    return;
+  }
+
+  if (request.method === "POST" && request.url === "/api/generate-activity-fields") {
+    await generateActivityFields(request, response);
     return;
   }
 

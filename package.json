@@ -1,0 +1,8 @@
+{
+  "scripts": {
+    "test": "node --test tests/generate-activity-fields.test.mjs tests/proposal-regression.test.mjs",
+    "test:regression": "node --test tests/generate-activity-fields.test.mjs tests/proposal-regression.test.mjs",
+    "test:baseline": "node --check server.mjs && node --check proposal.js && node --check app.js && node --test tests/generate-activity-fields.test.mjs tests/proposal-regression.test.mjs",
+    "check": "node --check server.mjs && node --check proposal.js && node --check app.js && node --test tests/generate-activity-fields.test.mjs tests/proposal-regression.test.mjs"
+  }
+}

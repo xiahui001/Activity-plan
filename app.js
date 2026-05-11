@@ -7,24 +7,23 @@ const form = document.getElementById("poster-form");
 const titleInput = document.getElementById("title");
 const subtitleInput = document.getElementById("subtitle");
 const dateInput = document.getElementById("date");
-const timeInput = document.getElementById("time");
+const titleFontInput = document.getElementById("title-font");
+const subtitleFontInput = document.getElementById("subtitle-font");
 const locationInput = document.getElementById("location");
 const highlightsInput = document.getElementById("highlights");
-const ctaInput = document.getElementById("cta");
 const themeInput = document.getElementById("theme");
-const sizeInput = document.getElementById("size");
 const brandPrimaryInput = document.getElementById("brand-primary");
 const brandAccentInput = document.getElementById("brand-accent");
+const brandPrimaryShell = document.getElementById("brand-primary-shell");
+const brandAccentShell = document.getElementById("brand-accent-shell");
+const posterTypeInput = document.getElementById("poster-type");
+const imageOrientationInput = document.getElementById("image-orientation");
+const imageResolutionInput = document.getElementById("image-resolution");
 const visualKeywordsInput = document.getElementById("visual-keywords");
-const campaignChannelInput = document.getElementById("campaign-channel");
-const offerHookInput = document.getElementById("offer-hook");
 const brandNameInput = document.getElementById("brand-name");
-const logoTextInput = document.getElementById("logo-text");
-const signupLinkInput = document.getElementById("signup-link");
 const logoUploadInput = document.getElementById("logo-upload");
+const qrEnabledInput = document.getElementById("qr-enabled");
 const qrUploadInput = document.getElementById("qr-upload");
-const companyProfileInput = document.getElementById("company-profile");
-const companyStrengthsInput = document.getElementById("company-strengths");
 const momentsCopyOutput = document.getElementById("moments-copy-output");
 const copyOutput = document.getElementById("copy-output");
 const proposalOutput = document.getElementById("proposal-output");
@@ -43,17 +42,36 @@ const posterLogoImage = document.getElementById("poster-logo-image");
 const posterTitle = document.getElementById("poster-title");
 const posterSubtitle = document.getElementById("poster-subtitle");
 const posterDate = document.getElementById("poster-date");
-const posterTime = document.getElementById("poster-time");
 const posterLocation = document.getElementById("poster-location");
 const posterHighlights = document.getElementById("poster-highlights");
 const posterLink = document.getElementById("poster-link");
 const posterCta = document.getElementById("poster-cta");
+const posterQr = document.getElementById("poster-qr");
 const posterQrImage = document.getElementById("poster-qr-image");
 const posterQrPlaceholder = document.getElementById("poster-qr-placeholder");
 
 const aiStatus = document.getElementById("ai-status");
+const aiProgress = document.getElementById("ai-progress");
+const aiProgressBar = document.getElementById("ai-progress-bar");
+const aiProgressPercent = document.getElementById("ai-progress-percent");
+const aiProgressDetail = document.getElementById("ai-progress-detail");
+const aiResultGallery = document.getElementById("ai-result-gallery");
+const aiResultCard = document.getElementById("ai-result-card");
 const aiResultImage = document.getElementById("ai-result-image");
 const aiResultPlaceholder = document.getElementById("ai-result-placeholder");
+const aiResultSlots = Array.from(document.querySelectorAll("[data-ai-result-slot]"));
+const aiResultImages = aiResultSlots.map((slot) => slot.querySelector("[data-ai-result-image]"));
+const aiResultPlaceholders = aiResultSlots.map((slot) => slot.querySelector("[data-ai-result-placeholder]"));
+const aiResultDownloadButtons = Array.from(document.querySelectorAll("[data-ai-download]"));
+const imageLightbox = document.getElementById("image-lightbox");
+const lightboxImage = document.getElementById("lightbox-image");
+const lightboxTitle = document.getElementById("lightbox-title");
+const lightboxDownloadButton = document.getElementById("lightbox-download");
+const lightboxCloseTriggers = Array.from(document.querySelectorAll("[data-lightbox-close]"));
+const generateAiFieldsButton = document.getElementById("generate-ai-fields");
+const generateAiImageButton = document.getElementById("generate-ai-image");
+const downloadPngButton = document.getElementById("download-png");
+const aiFieldsStatus = document.getElementById("ai-fields-status");
 
 const themeLabels = {
   sunset: "落日露营",
@@ -61,21 +79,108 @@ const themeLabels = {
   forest: "自然市集",
 };
 
-const sizeLabels = {
-  portrait: "4:5",
-  square: "1:1",
-  story: "9:16",
+const orientationLabels = {
+  portrait: "竖屏 9:16",
+  landscape: "横屏 16:9",
+};
+
+const POSTER_IMAGE_COUNT = 3;
+
+const POSTER_TYPE_CONFIG = {
+  kv: {
+    label: "主 KV",
+    defaultOrientation: "landscape",
+    sizes: {
+      landscape: "5504x3040",
+      portrait: "3040x5504",
+    },
+    typePrompt:
+      "主 KV 类型特点：作为活动主视觉、提案封面、大屏主画面和后续物料延展母版；画面要有明确视觉中心、品牌氛围和空间延展性，文字克制但标题有冲击力，避免塞满细节。",
+  },
+  checkin: {
+    label: "打卡点",
+    defaultOrientation: "landscape",
+    sizes: {
+      landscape: "4096x2304",
+      portrait: "2304x4096",
+    },
+    typePrompt:
+      "打卡点类型特点：表现可落地的现场拍照装置、DP 点或互动美陈场景；需要有人可站位的空间、装置结构、材质细节、拍照动线和社交传播感，不要只做平面海报。",
+  },
+  poster: {
+    label: "海报",
+    defaultOrientation: "portrait",
+    sizes: {
+      portrait: "3040x5504",
+      landscape: "5504x3040",
+    },
+    typePrompt:
+      "海报类型特点：作为朋友圈、社群和线上传播主图；信息层级要清楚，主标题、副标题、日期、地点和视觉氛围完整进入画面，适合手机端快速阅读与转发。",
+  },
+};
+
+const DEFAULT_POSTER_TYPE = "kv";
+const DEFAULT_SIZE = POSTER_TYPE_CONFIG[DEFAULT_POSTER_TYPE].defaultOrientation;
+
+const FONT_CSS_MAP = {
+  "思源黑体 Heavy": '"Noto Sans SC", "Source Han Sans SC", "Microsoft YaHei", sans-serif',
+  "思源黑体 Medium": '"Noto Sans SC", "Source Han Sans SC", "Microsoft YaHei", sans-serif',
+  "思源宋体 Heavy": '"Noto Serif SC", "Source Han Serif SC", "Songti SC", serif',
+  "思源宋体 Medium": '"Noto Serif SC", "Source Han Serif SC", "Songti SC", serif',
+  "阿里巴巴普惠体 Heavy": '"Alibaba PuHuiTi", "Noto Sans SC", "Microsoft YaHei", sans-serif',
+  "阿里巴巴普惠体 Medium": '"Alibaba PuHuiTi", "Noto Sans SC", "Microsoft YaHei", sans-serif',
+  方正兰亭黑: '"FZLTHJW", "FZLanTingHei", "Noto Sans SC", "Microsoft YaHei", sans-serif',
+  方正大标宋: '"FZDaBiaoSong", "STSong", "SimSun", serif',
+  方正小标宋: '"FZXiaoBiaoSong", "STSong", "SimSun", serif',
+  汉仪旗黑: '"HYQiHei", "Noto Sans SC", "Microsoft YaHei", sans-serif',
+  汉仪尚巍手书: '"HYShangWeiShouShu", "STKaiti", "KaiTi", cursive',
+  优设标题黑: '"YouSheBiaoTiHei", "Noto Sans SC", "Microsoft YaHei", sans-serif',
+  站酷高端黑: '"ZCOOL QingKe HuangYou", "Noto Sans SC", "Microsoft YaHei", sans-serif',
+  庞门正道标题体: '"PangMenZhengDao", "Noto Sans SC", "Microsoft YaHei", sans-serif',
+  造字工房力黑: '"ZaoZiGongFangLiHei", "Noto Sans SC", "Microsoft YaHei", sans-serif',
 };
 
 const state = {
   logoImage: "",
   qrImage: "",
   aiImage: "",
+  aiImages: [],
   aiImageMimeType: "image/png",
   lastAutoPrompt: "",
+  fieldIdeaIteration: 0,
+  imageProgressPercent: 0,
+  selectedAiImageIndex: 0,
 };
 
+function resolveThemePreset(themeText) {
+  const normalized = String(themeText || "").toLowerCase();
+  if (normalized.includes("neon") || normalized.includes("霓虹") || normalized.includes("派对") || normalized.includes("夜")) {
+    return "neon";
+  }
+  if (normalized.includes("forest") || normalized.includes("自然") || normalized.includes("市集") || normalized.includes("森")) {
+    return "forest";
+  }
+  return "sunset";
+}
+
+function getThemeText(value) {
+  return themeLabels[value] || value || "落日露营";
+}
+
+function getFallbackLogoText(brandName) {
+  const normalized = String(brandName || "").trim();
+  if (!normalized) {
+    return "LOGO";
+  }
+  const ascii = normalized.match(/[A-Za-z0-9]/g);
+  if (ascii && ascii.length) {
+    return ascii.slice(0, 2).join("").toUpperCase();
+  }
+  return normalized.slice(0, 2);
+}
+
 function getThemeTokens(theme, primaryColor, accentColor) {
+  const preset = themeLabels[theme] ? theme : "sunset";
   const defaults = {
     sunset: {
       base: primaryColor || "#ff8c61",
@@ -98,53 +203,60 @@ function getThemeTokens(theme, primaryColor, accentColor) {
   };
 
   return {
-    ...defaults[theme],
+    ...defaults[preset],
     ctaBg: accentColor || "#fff4d0",
     ctaText: getReadableTextColor(accentColor || "#fff4d0"),
     orb1: hexToRgba(accentColor || "#fff4d0", 0.28),
-    orb2: hexToRgba(primaryColor || defaults[theme].base, 0.32),
+    orb2: hexToRgba(primaryColor || defaults[preset].base, 0.32),
   };
 }
 
-function getPosterDimensions(size) {
-  if (size === "square") {
-    return { width: 1200, height: 1200 };
-  }
-  if (size === "story") {
-    return { width: 1080, height: 1920 };
-  }
-  return { width: 1200, height: 1500 };
+function getPosterTypeConfig(type) {
+  return POSTER_TYPE_CONFIG[type] || POSTER_TYPE_CONFIG[DEFAULT_POSTER_TYPE];
 }
 
-function getImageApiSize(size) {
-  if (size === "square") {
-    return "1024x1024";
-  }
-  return "1024x1536";
+function getFontCss(fontName) {
+  return FONT_CSS_MAP[fontName] || FONT_CSS_MAP["思源黑体 Heavy"];
+}
+
+function getImageApiSize(size, type = DEFAULT_POSTER_TYPE) {
+  const config = getPosterTypeConfig(type);
+  return config.sizes[size] || config.sizes[config.defaultOrientation];
+}
+
+function getPosterDimensions(size, type = DEFAULT_POSTER_TYPE) {
+  const [width, height] = getImageApiSize(size, type).split("x").map((part) => Number.parseInt(part, 10));
+  return { width, height };
 }
 
 function getFormData() {
+  const brandName = brandNameInput.value.trim() || "活动企划";
+  const themeText = themeInput.value.trim() || "落日露营";
+  const posterType = posterTypeInput.value || DEFAULT_POSTER_TYPE;
+  const posterTypeConfig = getPosterTypeConfig(posterType);
+
   return {
     title: titleInput.value.trim() || "未命名活动",
     subtitle: subtitleInput.value.trim() || "补充一句吸引人的活动描述",
     date: dateInput.value.trim() || "待定",
-    time: timeInput.value.trim() || "待定",
+    titleFont: titleFontInput.value || "思源黑体 Heavy",
+    subtitleFont: subtitleFontInput.value || "思源黑体 Medium",
     location: locationInput.value.trim() || "待定",
-    highlights: highlightsInput.value.trim() || "亮点待补充",
-    cta: ctaInput.value.trim() || "立即参与",
-    theme: themeInput.value,
-    size: sizeInput.value,
+    highlights: highlightsInput.value.trim() || "设计方向待补充",
+    theme: themeText,
+    themePreset: resolveThemePreset(themeText),
+    posterType,
+    posterTypeLabel: posterTypeConfig.label,
+    posterTypePrompt: posterTypeConfig.typePrompt,
+    size: imageOrientationInput.value || DEFAULT_SIZE,
+    imageResolution: imageResolutionInput.value || "4K",
     brandPrimary: brandPrimaryInput.value,
     brandAccent: brandAccentInput.value,
     visualKeywords: visualKeywordsInput.value.trim() || "强视觉、活动海报、商业传播",
-    campaignChannel: campaignChannelInput.value,
-    offerHook: offerHookInput.value.trim() || "限时预约 / 到场福利 / 名额有限",
-    brandName: brandNameInput.value.trim() || "活动企划",
-    logoText: logoTextInput.value.trim() || "LOGO",
-    signupLink: signupLinkInput.value.trim() || "https://example.com",
-    companyProfile: companyProfileInput.value.trim() || "公司主营活动策划与执行服务。",
-    companyStrengths: companyStrengthsInput.value.trim() || "活动策划与执行一体化。",
+    brandName,
+    logoText: getFallbackLogoText(brandName),
     logoImage: state.logoImage,
+    qrEnabled: qrEnabledInput.checked,
     qrImage: state.qrImage,
     imageModel: imageModelInput.value,
     imageQuality: imageQualityInput.value,
@@ -156,28 +268,40 @@ function setInputValue(element, value) {
   element.value = value || "";
 }
 
+function syncColorPicker(input, shell) {
+  const value = input.value || "#000000";
+  shell.style.background = value;
+}
+
+function syncColorPickers() {
+  syncColorPicker(brandPrimaryInput, brandPrimaryShell);
+  syncColorPicker(brandAccentInput, brandAccentShell);
+}
+
 function applyTemplateData(template) {
   setInputValue(titleInput, template.title);
   setInputValue(subtitleInput, template.subtitle);
   setInputValue(dateInput, template.date);
-  setInputValue(timeInput, template.time);
+  setInputValue(titleFontInput, template.titleFont || "思源黑体 Heavy");
+  setInputValue(subtitleFontInput, template.subtitleFont || "思源黑体 Medium");
   setInputValue(locationInput, template.location);
   setInputValue(highlightsInput, template.highlights);
-  setInputValue(ctaInput, template.cta);
-  setInputValue(themeInput, template.theme || "sunset");
-  setInputValue(sizeInput, template.size || "portrait");
+  setInputValue(themeInput, getThemeText(template.theme));
   setInputValue(brandPrimaryInput, template.brandPrimary || "#ff8c61");
   setInputValue(brandAccentInput, template.brandAccent || "#fff4d0");
+  const templateType = template.posterType || DEFAULT_POSTER_TYPE;
+  setInputValue(posterTypeInput, POSTER_TYPE_CONFIG[templateType] ? templateType : DEFAULT_POSTER_TYPE);
+  const templateSize = ["portrait", "landscape"].includes(template.size)
+    ? template.size
+    : getPosterTypeConfig(posterTypeInput.value).defaultOrientation;
+  setInputValue(imageOrientationInput, templateSize);
+  setInputValue(imageResolutionInput, template.imageResolution || "4K");
   setInputValue(visualKeywordsInput, template.visualKeywords);
-  setInputValue(campaignChannelInput, template.campaignChannel || "moments");
-  setInputValue(offerHookInput, template.offerHook);
   setInputValue(brandNameInput, template.brandName);
-  setInputValue(logoTextInput, template.logoText);
-  setInputValue(signupLinkInput, template.signupLink);
-  setInputValue(companyProfileInput, template.companyProfile);
-  setInputValue(companyStrengthsInput, template.companyStrengths);
   setInputValue(imageModelInput, template.imageModel || "doubao-seedream-5-0-260128");
   setInputValue(imageQualityInput, template.imageQuality || "medium");
+  qrEnabledInput.checked = Boolean(template.qrEnabled);
+  syncColorPickers();
   state.logoImage = template.logoImage || "";
   state.qrImage = template.qrImage || "";
   logoUploadInput.value = "";
@@ -186,29 +310,15 @@ function applyTemplateData(template) {
 }
 
 function buildCopy(data) {
-  const channelLead = {
-    moments: "这版内容优先服务朋友圈宣发和私域引流，信息要短、狠、直接。",
-    poster: "这版内容优先服务活动主海报传播，强调视觉记忆点和活动氛围。",
-    group: "这版内容优先服务社群转发，强调清晰利益点和快速报名动作。",
-  }[data.campaignChannel];
-
-  const styleLead = {
-    sunset: "把周末做成一场有温度、有画面感的城市假日。",
-    neon: "把夜场热度、社交氛围和传播记忆点一次性拉满。",
-    forest: "把自然治愈感、市集松弛感和活动参与感揉进同一张海报。",
-  }[data.theme];
-
   return [
     `${data.brandName}｜${data.title}`,
-    `${data.date} ${data.time} @ ${data.location}`,
-    channelLead,
-    styleLead,
+    `${data.date} @ ${data.location}`,
+    `画面类型：${data.posterTypeLabel}`,
+    `视觉风格：${data.theme}`,
     `${data.subtitle}。`,
-    `核心亮点：${data.highlights}`,
-    `公司能力：${data.companyStrengths}`,
-    `引流钩子：${data.offerHook}`,
+    `设计方向：${data.highlights}`,
+    `字体建议：主标题 ${data.titleFont}，副标题 ${data.subtitleFont}`,
     `传播关键词：${data.visualKeywords}`,
-    `转化动作：主按钮使用“${data.cta}”，底部保留报名入口 ${data.signupLink}`,
   ].join("\n");
 }
 
@@ -216,12 +326,10 @@ function buildMomentsCopy(data) {
   return [
     `${data.title}｜${data.date}`,
     `${data.subtitle}`,
-    `这次我们把 ${data.highlights} 都安排上了，适合想找周末活动、做社交分享、现场打卡的人来玩。`,
-    `时间：${data.date} ${data.time}`,
+    `这次整体视觉会围绕“${data.highlights}”展开，适合做现场打卡、社交分享和活动主视觉延展。`,
+    `日期：${data.date}`,
     `地点：${data.location}`,
-    `福利：${data.offerHook}`,
-    `我们这边可提供活动策划、舞美搭建执行、物料搭建和舞台设备整体落地，现场呈现会更完整。`,
-    `${data.cta}，感兴趣可以直接私聊或扫码报名：${formatLink(data.signupLink)}`,
+    data.qrEnabled ? "感兴趣可以直接私聊或扫描现场二维码了解详情。" : "感兴趣可以直接私聊了解详情。",
   ].join("\n");
 }
 
@@ -230,82 +338,79 @@ function buildProposal(data) {
     sunset: "以温暖、放松、适合拍照打卡的氛围为主，强调周末松弛感和社交分享感。",
     neon: "以夜场节奏、互动体验和强视觉记忆点为主，强调年轻人社交扩散和现场热度。",
     forest: "以自然疗愈、轻逛轻体验和停留时长为主，强调品质感与生活方式内容。",
-  }[data.theme];
+  }[data.themePreset];
 
   const audience = {
     sunset: "城市白领、年轻情侣、亲子家庭、周末出游人群",
     neon: "年轻白领、潮流人群、夜生活爱好者、社交媒体活跃用户",
     forest: "品质消费人群、手作爱好者、生活方式用户、亲子与宠物友好客群",
-  }[data.theme];
-
-  const rhythm = data.time.includes("-")
-    ? `建议按照 ${data.time} 的时段拆分为开场引流、核心体验、集中传播、收尾转化四段执行。`
-    : "建议拆分为开场引流、核心体验、集中传播、收尾转化四段执行。";
+  }[data.themePreset];
 
   return [
     `一、活动定位`,
-    `${data.title} 以“${data.subtitle}”为核心传播表达，整体视觉采用 ${themeLabels[data.theme]} 方向。${themeDirection}`,
+    `${data.title} 以“${data.subtitle}”为核心传播表达，当前输出类型为“${data.posterTypeLabel}”，整体视觉采用“${data.theme}”方向。${themeDirection}设计方向重点为：${data.highlights}。`,
     ``,
     `二、活动目标`,
-    `1. 拉新：通过主视觉海报和报名链接吸引目标人群完成预约或到场。`,
+    `1. 拉新：通过主视觉海报和社群传播吸引目标人群关注活动并形成到场意向。`,
     `2. 停留：围绕 ${data.highlights} 设计内容体验，提升用户停留时长和参与深度。`,
-    `3. 转化：以“${data.cta}”作为主行动指令，统一线上传播与现场转化动作。`,
-    `4. 引流：优先围绕 ${data.campaignChannel === "moments" ? "朋友圈宣发" : data.campaignChannel === "group" ? "社群转发" : "主海报扩散"} 设计传播节奏，突出 ${data.offerHook}。`,
+    data.qrEnabled
+      ? "3. 转化：通过二维码、现场咨询和私域承接完成后续沟通，减少海报信息负担。"
+      : "3. 转化：通过私域沟通、现场咨询和后续内容承接完成转化，不在海报上增加扫码负担。",
+    `4. 引流：围绕视觉关键词“${data.visualKeywords}”设计传播素材，保证朋友圈、社群和现场物料风格一致。`,
     ``,
     `三、目标人群`,
     `核心客群：${audience}。`,
     `传播人设：对活动氛围、视觉质感和社交分享有较高敏感度的人群。`,
     ``,
-    `四、公司承接优势`,
-    `${data.companyProfile}`,
-    `能力重点：${data.companyStrengths}`,
-    `建议对外统一表达“策划、设计、搭建执行、设备支持一体化”，增强客户对整体交付能力的信任。`,
-    ``,
-    `五、活动内容结构`,
+    `四、活动内容结构`,
     `1. 主会场主题：围绕“${data.title}”设置一处核心视觉区，确保适合拍照、直播和短视频传播。`,
     `2. 内容模块：根据“${data.highlights}”拆分为 3 至 4 个体验单元，建议包含互动、展示、消费、打卡四类内容。`,
-    `3. 信息呈现：重点突出时间 ${data.date} ${data.time}、地点 ${data.location}、报名入口 ${formatLink(data.signupLink)}。`,
+    data.qrEnabled
+      ? `3. 信息呈现：重点突出日期 ${data.date}、地点 ${data.location}，二维码区域仅作为后续了解入口。`
+      : `3. 信息呈现：重点突出日期 ${data.date}、地点 ${data.location}，不设置二维码区，保持主视觉完整。`,
     ``,
-    `六、执行节奏`,
-    rhythm,
-    `前期预热：上线海报主视觉、释放亮点关键词“${data.visualKeywords}”，同步推送报名链接，并围绕“${data.offerHook}”设计首轮朋友圈文案。`,
+    `五、传播节奏`,
+    `建议拆分为预热发布、现场打卡、集中传播、后续复盘四段执行。`,
+    `前期预热：上线海报主视觉、释放视觉关键词“${data.visualKeywords}”，建立第一轮朋友圈与社群传播素材。`,
     `活动当天：现场重点记录人流高峰、互动参与和品牌露出画面，适合即时二次传播。`,
     `活动后续：回收照片和视频素材，沉淀复盘内容，用于下一轮活动招商或招募。`,
     ``,
-    `七、传播建议`,
+    `六、传播建议`,
     `1. 视觉传播：统一使用品牌名 ${data.brandName} 与主色 ${data.brandPrimary}，保持海报、社媒封面和现场物料一致。`,
-    `2. 文案传播：主标题聚焦活动名，副标题负责氛围解释，按钮统一为“${data.cta}”，朋友圈首屏优先抛出“${data.offerHook}”。`,
-    `3. 转发机制：可设置限时福利、拍照打卡点、好友同行机制，提升自然扩散和私域转发。`,
-    ``,
-    `八、落地清单`,
-    `- 海报主视觉、社交媒体封面、报名页 Banner`,
-    `- 现场导视、签到点、主舞台或主互动区视觉物料`,
-    `- 美陈装置、会议类物料、展位结构或活动舞美搭建方案`,
-    `- 舞台设备、灯光音响、屏幕或演出配套设备清单`,
-    `- 二维码物料、主持人口播词、摄影摄像点位安排`,
-    `- 活动结束后的图文复盘和二次传播内容`,
+    data.qrEnabled
+      ? "2. 文案传播：主标题聚焦活动名，副标题负责氛围解释，设计方向负责画面记忆点，二维码区域负责后续了解动作。"
+      : "2. 文案传播：主标题聚焦活动名，副标题负责氛围解释，设计方向负责画面记忆点，画面不再承担扫码动作。",
+    `3. 字体传播：主标题使用 ${data.titleFont}，副标题使用 ${data.subtitleFont}，保证 KV、打卡点和海报延展时识别一致。`,
   ].join("\n");
 }
 
 function buildPrompt(data) {
+  const imageSize = getImageApiSize(data.size, data.posterType);
+  const qrPrompt = data.qrEnabled
+    ? "二维码要求：右下角必须预留真实二维码覆盖区，不要生成假的二维码图案；请围绕该区域设计与主色调、搭配色系一致的底托、发光边框、角标或信息框，底部标签为“扫码报名”。"
+    : "二维码要求：本张海报不需要二维码，不要预留二维码区域，不要生成二维码图案，也不要出现“扫码报名”等扫码文案。";
+  const layoutPrompt = data.qrEnabled
+    ? "版式要求：大标题强冲击，日期和地点清晰，右下角预留二维码位置。所有文字、Logo、二维码都必须完整位于画面内，四周保留 8%-10% 安全边距，不要贴边，不要裁切。"
+    : "版式要求：大标题强冲击，日期和地点清晰；画面保持完整留白和视觉呼吸感。所有文字、Logo 都必须完整位于画面内，四周保留 8%-10% 安全边距，不要贴边，不要裁切。";
+  const infoPlacementPrompt =
+    "日期地点排版：日期和地点必须作为底部信息栏处理，放在画面左下角或底部左侧安全区，用小字号横向信息条呈现；不要放在画面中部，不要放在主标题正下方中央，不要使用 @ 符号或巨大定位图标，不要压住主视觉、人物、产品、地标或活动场景主体。";
   return [
-    `请生成一张中文活动宣传海报，比例 ${sizeLabels[data.size]}，用于线上传播。`,
+    `请生成一张中文活动视觉图，画面类型为${data.posterTypeLabel}，画面方向为${orientationLabels[data.size]}，输出尺寸 ${imageSize}。`,
+    data.posterTypePrompt,
     `活动主题：${data.title}。`,
     `副标题：${data.subtitle}。`,
-    `活动信息：${data.date} ${data.time}，地点 ${data.location}。`,
-    `品牌信息：品牌名 ${data.brandName}，Logo 以“${data.logoText}”为核心识别。`,
-    `执行背景：${data.companyProfile}。`,
-    `传播目标：用于${data.campaignChannel === "moments" ? "朋友圈引流" : data.campaignChannel === "group" ? "社群转发" : "活动主海报传播"}，首屏信息优先突出“${data.offerHook}”。`,
-    `视觉方向：${themeLabels[data.theme]}，主品牌色 ${data.brandPrimary}，强调色 ${data.brandAccent}。`,
+    `活动信息：日期 ${data.date}，地点 ${data.location}。`,
+    `品牌信息：品牌名 ${data.brandName}，Logo 使用上传的品牌文件；如果没有 Logo 文件，只保留简洁品牌标识位。`,
+    `字体要求：主标题使用或模仿 ${data.titleFont} 的字形气质，副标题使用或模仿 ${data.subtitleFont} 的字形气质；中文排版要专业，不要乱码。`,
+    `传播目标：用于${data.posterTypeLabel}视觉输出，首屏信息优先突出活动主题和活动氛围，日期地点作为底部辅助信息清晰出现。`,
+    `视觉方向：${data.theme}，主色调 ${data.brandPrimary}，搭配色系 ${data.brandAccent}。`,
     `画面关键词：${data.visualKeywords}。`,
-    `版式要求：大标题强冲击，日期清晰，时间和地点放底部信息区，保留按钮文案“${data.cta}”，右下角预留二维码位置。`,
-    `内容亮点：${data.highlights}。`,
+    qrPrompt,
+    infoPlacementPrompt,
+    layoutPrompt,
+    `设计方向：${data.highlights}。`,
     `整体要求：高级、商业、适合活动策划提案，不要杂乱，不要过度卡通。`,
   ].join("\n");
-}
-
-function formatLink(link) {
-  return link.replace(/^https?:\/\//i, "").replace(/\/$/, "");
 }
 
 function syncImagePrompt(force = false, explicitValue = "") {
@@ -330,32 +435,34 @@ function updateOutputs(syncPrompt = false, explicitPrompt = "") {
   proposalOutput.value = buildProposal(data);
   promptOutput.value = generatedPrompt;
   syncImagePrompt(syncPrompt, explicitPrompt);
+  return generatedPrompt;
 }
 
 function updatePreview() {
   const data = getFormData();
-  const theme = getThemeTokens(data.theme, data.brandPrimary, data.brandAccent);
+  const theme = getThemeTokens(data.themePreset, data.brandPrimary, data.brandAccent);
 
   posterTitle.textContent = data.title;
   posterSubtitle.textContent = data.subtitle;
   posterDate.textContent = data.date;
-  posterTime.textContent = data.time;
   posterLocation.textContent = data.location;
   posterHighlights.textContent = data.highlights;
-  posterLink.textContent = formatLink(data.signupLink);
-  posterCta.textContent = data.cta;
+  posterLink.textContent = "扫码了解";
+  posterCta.hidden = true;
   posterTag.textContent = data.brandName;
   posterLogoText.textContent = data.logoText;
-  sizeBadge.textContent = sizeLabels[data.size];
+  posterTitle.style.fontFamily = getFontCss(data.titleFont);
+  posterSubtitle.style.fontFamily = getFontCss(data.subtitleFont);
+  sizeBadge.textContent = `${data.posterTypeLabel} ${orientationLabels[data.size]} ${data.imageResolution || "4K"} ${getImageApiSize(data.size, data.posterType)}`;
+  sizeBadge.hidden = false;
+  posterQr.hidden = !data.qrEnabled;
 
-  posterCard.className = `poster-card ${data.theme} poster-${data.size}`;
+  posterCard.className = `poster-card ${data.themePreset} poster-${data.size}`;
   posterCard.style.background = [
     `radial-gradient(circle at top right, ${hexToRgba(data.brandAccent, 0.5)}, transparent 26%)`,
     `linear-gradient(150deg, ${theme.base} 0%, ${theme.secondary} 44%, ${theme.dark} 100%)`,
   ].join(", ");
   posterCard.style.color = theme.text;
-  posterCta.style.background = theme.ctaBg;
-  posterCta.style.color = theme.ctaText;
 
   const orbs = posterCard.querySelectorAll(".poster-orb");
   if (orbs.length === 2) {
@@ -372,18 +479,100 @@ function updatePreview() {
     posterLogoText.hidden = false;
   }
 
-  if (data.qrImage) {
+  if (data.qrEnabled && data.qrImage) {
     posterQrImage.src = data.qrImage;
     posterQrImage.hidden = false;
     posterQrPlaceholder.hidden = true;
-  } else {
+  } else if (data.qrEnabled) {
     posterQrImage.hidden = true;
     posterQrPlaceholder.hidden = false;
-    posterQrPlaceholder.textContent = formatLink(data.signupLink);
+    posterQrPlaceholder.textContent = "QR";
+  } else {
+    posterQrImage.hidden = true;
+    posterQrPlaceholder.hidden = true;
+  }
+}
+
+function setAiFieldsStatus(message, type = "") {
+  aiFieldsStatus.textContent = message;
+  aiFieldsStatus.className = "field-status";
+  if (type) {
+    aiFieldsStatus.classList.add(`is-${type}`);
+  }
+}
+
+function isHexColor(value) {
+  return /^#[0-9a-f]{6}$/i.test(String(value || ""));
+}
+
+function applyAiFields(fields) {
+  setInputValue(subtitleInput, fields.subtitle || subtitleInput.value);
+  setInputValue(highlightsInput, fields.highlights || highlightsInput.value);
+  setInputValue(themeInput, fields.theme || themeInput.value);
+  if (isHexColor(fields.brandPrimary)) {
+    setInputValue(brandPrimaryInput, fields.brandPrimary);
+  }
+  if (isHexColor(fields.brandAccent)) {
+    setInputValue(brandAccentInput, fields.brandAccent);
+  }
+  setInputValue(visualKeywordsInput, fields.visualKeywords || visualKeywordsInput.value);
+}
+
+async function generateAiFields() {
+  const data = getFormData();
+  if (!data.title || data.title === "未命名活动") {
+    window.alert("请先填写活动名称。");
+    return;
+  }
+
+  state.fieldIdeaIteration += 1;
+  generateAiFieldsButton.disabled = true;
+  generateAiFieldsButton.textContent = "刷新中...";
+  setAiFieldsStatus(`正在生成第 ${state.fieldIdeaIteration} 版视觉方案...`);
+
+  try {
+    const response = await fetch("/api/generate-activity-fields", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        title: data.title,
+        subtitle: data.subtitle,
+        date: data.date,
+        location: data.location,
+        highlights: data.highlights,
+        theme: data.theme,
+        posterType: data.posterTypeLabel,
+        titleFont: data.titleFont,
+        subtitleFont: data.subtitleFont,
+        brandPrimary: data.brandPrimary,
+        brandAccent: data.brandAccent,
+        visualKeywords: data.visualKeywords,
+        brandName: data.brandName,
+        iteration: state.fieldIdeaIteration,
+      }),
+    });
+
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(payload.error || "AI 字段生成失败。");
+    }
+
+    applyAiFields(payload);
+    refreshAll(true);
+    setAiFieldsStatus(`已生成第 ${state.fieldIdeaIteration} 版，可继续点击切换。`, "success");
+  } catch (error) {
+    setAiFieldsStatus(String(error.message || error), "error");
+    window.alert(String(error.message || error));
+  } finally {
+    generateAiFieldsButton.disabled = false;
+    generateAiFieldsButton.textContent = "刷新文案";
   }
 }
 
 function refreshAll(syncPrompt = false, explicitPrompt = "") {
+  syncColorPickers();
   updatePreview();
   updateOutputs(syncPrompt, explicitPrompt);
   persistDraft();
@@ -435,8 +624,10 @@ function wrapText(text, maxLength) {
 
 function buildSvgMarkup() {
   const data = getFormData();
-  const theme = getThemeTokens(data.theme, data.brandPrimary, data.brandAccent);
-  const { width, height } = getPosterDimensions(data.size);
+  const theme = getThemeTokens(data.themePreset, data.brandPrimary, data.brandAccent);
+  const { width, height } = getPosterDimensions(data.size, data.posterType);
+  const titleFontFamily = getFontCss(data.titleFont);
+  const subtitleFontFamily = getFontCss(data.subtitleFont);
   const titleLines = wrapText(data.title, data.size === "story" ? 6 : 8);
   const subtitleLines = wrapText(data.subtitle, data.size === "story" ? 12 : 16);
   const highlightLines = wrapText(data.highlights, data.size === "story" ? 14 : 18);
@@ -475,7 +666,16 @@ function buildSvgMarkup() {
 
   const qrMarkup = data.qrImage
     ? `<image href="${escapeXml(data.qrImage)}" x="${qrX}" y="${qrY + 24}" width="${qrSize}" height="${qrSize}" preserveAspectRatio="xMidYMid slice" clip-path="url(#qrClip)" />`
-    : `<text x="${qrX + 16}" y="${qrY + 88}" font-size="22" font-family="Space Grotesk, Noto Sans SC, sans-serif" opacity="0.92">${escapeXml(formatLink(data.signupLink))}</text>`;
+    : `<text x="${qrX + qrSize / 2}" y="${qrY + 92}" text-anchor="middle" font-size="24" font-family="Space Grotesk, Noto Sans SC, sans-serif" opacity="0.92">QR</text>`;
+  const qrGroup = data.qrEnabled
+    ? `<g>
+    <rect x="${qrX}" y="${qrY}" width="${qrSize}" height="${qrSize + 24}" rx="24" fill="#ffffff" fill-opacity="0.12" />
+    <text x="${qrX + 18}" y="${qrY + 18}" fill="${theme.text}" font-size="14" font-family="Space Grotesk, Noto Sans SC, sans-serif" letter-spacing="2">
+      SCAN
+    </text>
+    ${qrMarkup}
+  </g>`
+    : "";
 
   return `
 <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
@@ -518,41 +718,27 @@ function buildSvgMarkup() {
       ${escapeXml(data.date)}
     </text>
 
-    <text x="${padding}" y="${titleY}" font-size="${titleFontSize}" font-family="Space Grotesk, Noto Sans SC, sans-serif" font-weight="700" letter-spacing="-4">
+    <text x="${padding}" y="${titleY}" font-size="${titleFontSize}" font-family="${escapeXml(titleFontFamily)}" font-weight="700" letter-spacing="-4">
       ${titleSvg}
     </text>
 
-    <text x="${padding}" y="${titleY + titleFontSize * titleLines.length + 58}" font-size="${subtitleFontSize}" font-family="Noto Sans SC, sans-serif" font-weight="500" opacity="0.95">
+    <text x="${padding}" y="${titleY + titleFontSize * titleLines.length + 58}" font-size="${subtitleFontSize}" font-family="${escapeXml(subtitleFontFamily)}" font-weight="500" opacity="0.95">
       ${subtitleSvg}
     </text>
 
-    <text x="${padding}" y="${footerY}" font-size="22" font-family="Space Grotesk, Noto Sans SC, sans-serif" letter-spacing="4" opacity="0.76">TIME</text>
-    <text x="${padding + 110}" y="${footerY}" font-size="34" font-family="Space Grotesk, Noto Sans SC, sans-serif" font-weight="700">${escapeXml(data.time)}</text>
+    <text x="${padding}" y="${footerY}" font-size="22" font-family="Space Grotesk, Noto Sans SC, sans-serif" letter-spacing="4" opacity="0.76">PLACE</text>
+    <text x="${padding + 132}" y="${footerY}" font-size="34" font-family="Noto Sans SC, sans-serif" font-weight="700">${escapeXml(data.location)}</text>
 
-    <text x="${padding}" y="${footerY + 62}" font-size="22" font-family="Space Grotesk, Noto Sans SC, sans-serif" letter-spacing="4" opacity="0.76">PLACE</text>
-    <text x="${padding + 132}" y="${footerY + 62}" font-size="34" font-family="Noto Sans SC, sans-serif" font-weight="700">${escapeXml(data.location)}</text>
-
-    <text x="${padding}" y="${footerY + 132}" font-size="30" font-family="Noto Sans SC, sans-serif" font-weight="500" opacity="0.92">
+    <text x="${padding}" y="${footerY + 72}" font-size="30" font-family="Noto Sans SC, sans-serif" font-weight="500" opacity="0.92">
       ${highlightsSvg}
     </text>
 
     <text x="${padding}" y="${height - 136}" font-size="22" font-family="Space Grotesk, Noto Sans SC, sans-serif" opacity="0.82">
-      ${escapeXml(formatLink(data.signupLink))}
+      ${escapeXml(data.brandName)}
     </text>
   </g>
 
-  <g>
-    <rect x="${padding}" y="${height - 120}" width="${Math.max(240, data.cta.length * 32)}" height="68" rx="34" fill="${theme.ctaBg}" />
-    <text x="${padding + 28}" y="${height - 76}" fill="${theme.ctaText}" font-size="28" font-family="Space Grotesk, Noto Sans SC, sans-serif" font-weight="700">
-      ${escapeXml(data.cta)}
-    </text>
-
-    <rect x="${qrX}" y="${qrY}" width="${qrSize}" height="${qrSize + 24}" rx="24" fill="#ffffff" fill-opacity="0.12" />
-    <text x="${qrX + 18}" y="${qrY + 18}" fill="${theme.text}" font-size="14" font-family="Space Grotesk, Noto Sans SC, sans-serif" letter-spacing="2">
-      SCAN TO JOIN
-    </text>
-    ${qrMarkup}
-  </g>
+  ${qrGroup}
 </svg>`.trim();
 }
 
@@ -577,13 +763,44 @@ function downloadDataUrl(filename, dataUrl) {
   link.remove();
 }
 
+function downloadAiImageAt(index) {
+  const image = state.aiImages[index];
+  if (!image) {
+    window.alert(`第 ${index + 1} 张图片还没有生成。`);
+    return;
+  }
+  downloadDataUrl(`poster-ai-image-${index + 1}.png`, image);
+}
+
+function openImageLightbox(index) {
+  const image = state.aiImages[index];
+  if (!image || !imageLightbox || !lightboxImage || !lightboxTitle) {
+    return;
+  }
+
+  selectAiImage(index);
+  lightboxImage.src = image;
+  lightboxTitle.textContent = `第 ${index + 1} 张生成结果`;
+  imageLightbox.hidden = false;
+  document.body.classList.add("has-lightbox");
+}
+
+function closeImageLightbox() {
+  if (!imageLightbox) {
+    return;
+  }
+  imageLightbox.hidden = true;
+  document.body.classList.remove("has-lightbox");
+}
+
 function exportSvg() {
   downloadFile("poster-design.svg", buildSvgMarkup(), "image/svg+xml;charset=utf-8");
 }
 
 function exportPng() {
   const svgMarkup = buildSvgMarkup();
-  const { width, height } = getPosterDimensions(getFormData().size);
+  const data = getFormData();
+  const { width, height } = getPosterDimensions(data.size, data.posterType);
   const url = URL.createObjectURL(new Blob([svgMarkup], { type: "image/svg+xml;charset=utf-8" }));
   const image = new Image();
 
@@ -635,21 +852,228 @@ function setAiStatus(message, type = "") {
   }
 }
 
+function selectAiImage(index) {
+  state.selectedAiImageIndex = Math.max(0, Math.min(POSTER_IMAGE_COUNT - 1, index));
+  aiResultSlots.forEach((slot, slotIndex) => {
+    slot.classList.toggle("is-selected", slotIndex === state.selectedAiImageIndex);
+  });
+}
+
+function renderAiImages(images = []) {
+  const data = getFormData();
+  state.aiImages = images.filter(Boolean);
+
+  aiResultSlots.forEach((slot, index) => {
+    const image = aiResultImages[index];
+    const placeholder = aiResultPlaceholders[index];
+    const downloadButton = aiResultDownloadButtons[index];
+    const dataUrl = state.aiImages[index] || "";
+    slot.classList.toggle("is-landscape", data.size === "landscape");
+    slot.classList.toggle("is-portrait", data.size !== "landscape");
+
+    if (!image || !placeholder) {
+      return;
+    }
+
+    if (dataUrl) {
+      image.src = dataUrl;
+      image.hidden = false;
+      placeholder.hidden = true;
+    } else {
+      image.hidden = true;
+      placeholder.hidden = false;
+      placeholder.textContent = index === 0
+        ? "点击左侧“AI 生成海报”，这里会并行显示 3 张真实模型生成结果。"
+        : `第 ${index + 1} 张结果待生成`;
+    }
+
+    if (downloadButton) {
+      downloadButton.disabled = !dataUrl;
+    }
+  });
+
+  selectAiImage(Math.min(state.selectedAiImageIndex, Math.max(0, state.aiImages.length - 1)));
+}
+
 function renderAiImage(dataUrl) {
-  if (!dataUrl) {
-    aiResultImage.hidden = true;
-    aiResultPlaceholder.hidden = false;
-    return;
+  renderAiImages(dataUrl ? [dataUrl] : []);
+}
+
+function setImageProgress(completedCount, totalCount, detail) {
+  const total = Math.max(1, totalCount);
+  const nextPercent = Math.max(
+    state.imageProgressPercent,
+    Math.min(100, Math.round((Math.max(0, completedCount) / total) * 100))
+  );
+  state.imageProgressPercent = nextPercent;
+  aiProgress.hidden = false;
+  aiProgressBar.style.width = `${nextPercent}%`;
+  aiProgressPercent.textContent = `${Math.min(completedCount, total)}/${total}`;
+  aiProgressDetail.textContent = detail;
+}
+
+function startImageProgress() {
+  state.imageProgressPercent = 0;
+  aiProgress.hidden = false;
+  aiProgressBar.style.width = "0%";
+  aiProgressPercent.textContent = `0/${POSTER_IMAGE_COUNT}`;
+  aiProgressDetail.textContent = `已并行提交 ${POSTER_IMAGE_COUNT} 个真实生成请求，等待模型返回。`;
+}
+
+function finishImageProgress(detail, type = "success") {
+  setImageProgress(POSTER_IMAGE_COUNT, POSTER_IMAGE_COUNT, detail);
+}
+
+function loadCanvasImage(src) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    if (!String(src).startsWith("data:")) {
+      image.crossOrigin = "anonymous";
+    }
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error("图片加载失败，无法合成二维码。"));
+    image.src = src;
+  });
+}
+
+function drawRoundedRect(context, x, y, width, height, radius) {
+  const r = Math.min(radius, width / 2, height / 2);
+  context.beginPath();
+  context.moveTo(x + r, y);
+  context.arcTo(x + width, y, x + width, y + height, r);
+  context.arcTo(x + width, y + height, x, y + height, r);
+  context.arcTo(x, y + height, x, y, r);
+  context.arcTo(x, y, x + width, y, r);
+  context.closePath();
+}
+
+function drawQrCornerMarks(context, x, y, width, height, color, lineWidth) {
+  const length = Math.min(width, height) * 0.18;
+  context.save();
+  context.strokeStyle = color;
+  context.lineWidth = lineWidth;
+  context.lineCap = "square";
+  [
+    [x, y, 1, 1],
+    [x + width, y, -1, 1],
+    [x, y + height, 1, -1],
+    [x + width, y + height, -1, -1],
+  ].forEach(([cornerX, cornerY, dirX, dirY]) => {
+    context.beginPath();
+    context.moveTo(cornerX, cornerY + dirY * length);
+    context.lineTo(cornerX, cornerY);
+    context.lineTo(cornerX + dirX * length, cornerY);
+    context.stroke();
+  });
+  context.restore();
+}
+
+async function composeQrOverlay(baseImageUrl, data) {
+  if (!data.qrEnabled || !data.qrImage) {
+    return baseImageUrl;
   }
 
-  aiResultImage.src = dataUrl;
-  aiResultImage.hidden = false;
-  aiResultPlaceholder.hidden = true;
+  const [baseImage, qrImage] = await Promise.all([
+    loadCanvasImage(baseImageUrl),
+    loadCanvasImage(data.qrImage),
+  ]);
+  const canvas = document.createElement("canvas");
+  canvas.width = baseImage.naturalWidth || baseImage.width;
+  canvas.height = baseImage.naturalHeight || baseImage.height;
+  const context = canvas.getContext("2d");
+  if (!context) {
+    return baseImageUrl;
+  }
+
+  const width = canvas.width;
+  const height = canvas.height;
+  const isLandscape = width > height;
+  const qrSize = Math.round(Math.max(220, Math.min(width * (isLandscape ? 0.13 : 0.16), height * 0.12, 720)));
+  const padding = Math.round(qrSize * 0.09);
+  const labelHeight = Math.round(qrSize * 0.26);
+  const blockWidth = qrSize + padding * 2;
+  const blockHeight = qrSize + padding * 2 + labelHeight;
+  const marginX = Math.round(width * 0.055);
+  const marginY = Math.round(height * 0.055);
+  const blockX = width - marginX - blockWidth;
+  const blockY = height - marginY - blockHeight;
+  const qrX = blockX + padding;
+  const qrY = blockY + padding;
+  const radius = Math.round(qrSize * 0.08);
+  const lineWidth = Math.max(4, Math.round(qrSize * 0.024));
+  const primary = data.brandPrimary || "#111111";
+  const accent = data.brandAccent || "#ffffff";
+
+  context.drawImage(baseImage, 0, 0, width, height);
+
+  context.save();
+  context.shadowColor = hexToRgba(accent, 0.55);
+  context.shadowBlur = Math.round(qrSize * 0.11);
+  drawRoundedRect(context, blockX, blockY, blockWidth, blockHeight, radius * 1.3);
+  context.fillStyle = hexToRgba(primary, 0.72);
+  context.fill();
+  context.restore();
+
+  drawRoundedRect(context, blockX, blockY, blockWidth, blockHeight, radius * 1.3);
+  context.strokeStyle = hexToRgba(accent, 0.92);
+  context.lineWidth = lineWidth;
+  context.stroke();
+
+  context.save();
+  drawRoundedRect(context, qrX, qrY, qrSize, qrSize, radius);
+  context.fillStyle = "#ffffff";
+  context.fill();
+  context.clip();
+  const innerPadding = Math.round(qrSize * 0.035);
+  context.drawImage(qrImage, qrX + innerPadding, qrY + innerPadding, qrSize - innerPadding * 2, qrSize - innerPadding * 2);
+  context.restore();
+
+  drawQrCornerMarks(context, qrX - lineWidth, qrY - lineWidth, qrSize + lineWidth * 2, qrSize + lineWidth * 2, accent, lineWidth);
+
+  context.font = `700 ${Math.round(labelHeight * 0.52)}px "Noto Sans SC", "Microsoft YaHei", sans-serif`;
+  context.textAlign = "center";
+  context.textBaseline = "middle";
+  context.lineWidth = Math.max(3, Math.round(qrSize * 0.018));
+  context.strokeStyle = hexToRgba(primary, 0.92);
+  context.fillStyle = getReadableTextColor(primary) === "#18202f" ? "#18202f" : accent;
+  const labelX = blockX + blockWidth / 2;
+  const labelY = blockY + padding + qrSize + labelHeight / 2;
+  context.strokeText("扫码报名", labelX, labelY);
+  context.fillText("扫码报名", labelX, labelY);
+
+  return canvas.toDataURL("image/png");
+}
+
+async function requestAiImage(prompt, data, index) {
+  const response = await fetch("/api/generate-image", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      prompt,
+      model: data.imageModel,
+      quality: data.imageQuality,
+      size: data.imageResolution || getImageApiSize(data.size, data.posterType),
+      orientation: data.size,
+      posterType: data.posterType,
+      variation: index + 1,
+    }),
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(payload.error || `第 ${index + 1} 张图片生成失败。`);
+  }
+
+  const mimeType = payload.mimeType || "image/png";
+  const imageUrl = payload.imageUrl || `data:${mimeType};base64,${payload.imageBase64}`;
+  return composeQrOverlay(imageUrl, data);
 }
 
 async function generateAiImage() {
   const data = getFormData();
-  const prompt = data.imagePrompt || promptOutput.value;
+  const prompt = data.imagePrompt || promptOutput.value || updateOutputs();
 
   if (!prompt) {
     window.alert("请先生成或填写提示词。");
@@ -657,51 +1081,95 @@ async function generateAiImage() {
   }
 
   setAiStatus("生成中", "loading");
-  aiResultPlaceholder.hidden = false;
-  aiResultPlaceholder.textContent = "豆包正在生成海报，请稍候...";
-  aiResultImage.hidden = true;
+  startImageProgress();
+  state.aiImages = [];
+  state.aiImage = "";
+  aiResultImages.forEach((image) => {
+    if (image) image.hidden = true;
+  });
+  aiResultPlaceholders.forEach((placeholder, index) => {
+    if (!placeholder) return;
+    placeholder.hidden = false;
+    placeholder.textContent = `第 ${index + 1} 张正在生成...`;
+  });
+  aiResultDownloadButtons.forEach((button) => {
+    button.disabled = true;
+  });
+  generateAiImageButton.disabled = true;
+  generateAiImageButton.textContent = "并行生成中...";
+  document.querySelector(".ai-result-panel")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
 
   try {
-    const response = await fetch("/api/generate-image", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        prompt,
-        model: data.imageModel,
-        quality: data.imageQuality,
-        size: getImageApiSize(data.size),
-      }),
+    let settledCount = 0;
+    const tasks = Array.from({ length: POSTER_IMAGE_COUNT }, async (_, index) => {
+      try {
+        const imageUrl = await requestAiImage(prompt, data, index);
+        return { index, imageUrl };
+      } catch (error) {
+        return { index, error };
+      } finally {
+        settledCount += 1;
+        setImageProgress(
+          settledCount,
+          POSTER_IMAGE_COUNT,
+          `真实请求已完成 ${settledCount}/${POSTER_IMAGE_COUNT}，正在整理生成结果。`
+        );
+      }
     });
-
-    const payload = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      throw new Error(payload.error || "图片生成失败。");
+    const results = await Promise.all(tasks);
+    const images = results
+      .filter((result) => result.imageUrl)
+      .map((result) => result.imageUrl);
+    if (!images.length) {
+      const firstError = results.find((result) => result.error);
+      throw new Error(firstError?.error?.message || "三张图片均生成失败。");
     }
 
-    state.aiImageMimeType = payload.mimeType || "image/png";
-    state.aiImage = payload.imageUrl || `data:${state.aiImageMimeType};base64,${payload.imageBase64}`;
-    renderAiImage(state.aiImage);
-    setAiStatus("生成完成", "success");
+    state.aiImages = images;
+    state.aiImage = images[0];
+    state.selectedAiImageIndex = 0;
+    state.aiImageMimeType = "image/png";
+    renderAiImages(images);
+    const failedCount = results.filter((result) => result.error).length;
+    finishImageProgress(
+      failedCount
+        ? `已生成 ${images.length} 张，${failedCount} 张失败，可直接下载已生成结果。`
+        : data.qrEnabled && data.qrImage
+          ? "3 张生成完成，已盖上上传的二维码。"
+          : "3 张生成完成，已返回真实模型结果。"
+    );
+    setAiStatus(failedCount ? "部分完成" : "生成完成", failedCount ? "error" : "success");
   } catch (error) {
     const message = String(error.message || error);
+    finishImageProgress(`生成失败：${message}`, "error");
     setAiStatus("生成失败", "error");
-    aiResultPlaceholder.hidden = false;
-    aiResultPlaceholder.textContent = message.includes("Failed to fetch")
-      ? "未连接到本地服务。请先按 README 启动本地服务，再刷新页面。"
-      : message;
-    aiResultImage.hidden = true;
+    aiResultPlaceholders.forEach((placeholder) => {
+      if (!placeholder) return;
+      placeholder.hidden = false;
+      placeholder.textContent = message.includes("Failed to fetch")
+        ? "未连接到本地服务。请先按 README 启动本地服务，再刷新页面。"
+        : message;
+    });
+    aiResultImages.forEach((image) => {
+      if (image) image.hidden = true;
+    });
+    window.alert(aiResultPlaceholders[0]?.textContent || message);
+  } finally {
+    generateAiImageButton.disabled = false;
+    generateAiImageButton.textContent = "AI 生成海报";
   }
 }
 
-function downloadAiImage() {
-  if (!state.aiImage) {
-    window.alert("还没有 AI 生成结果。");
+function downloadCurrentImage() {
+  if (state.aiImages[state.selectedAiImageIndex]) {
+    downloadAiImageAt(state.selectedAiImageIndex);
     return;
   }
-
-  downloadDataUrl("poster-ai-image.png", state.aiImage);
+  if (state.aiImage) {
+    downloadDataUrl("poster-ai-image-1.png", state.aiImage);
+    return;
+  }
+  window.alert("还没有真实 AI 生成图。请先点击“AI 生成海报”。");
 }
 
 function safeJsonParse(value, fallback) {
@@ -732,7 +1200,7 @@ function renderTemplateOptions() {
   const templates = getTemplates();
   const currentValue = templateSelect.value;
 
-  templateSelect.innerHTML = '<option value="">选择已保存模板</option>';
+  templateSelect.innerHTML = '<option value=""></option>';
   templates.forEach((template) => {
     const option = document.createElement("option");
     option.value = template.name;
@@ -898,12 +1366,18 @@ form.addEventListener("change", (event) => {
     return;
   }
 
+  if (event.target === posterTypeInput) {
+    imageOrientationInput.value = getPosterTypeConfig(posterTypeInput.value).defaultOrientation;
+    refreshAll(true);
+    return;
+  }
+
   if (event.target !== templateImportInput) {
     refreshAll();
   }
 });
 
-templateImportInput.addEventListener("change", () => {
+templateImportInput?.addEventListener("change", () => {
   const file = templateImportInput.files[0];
   if (file) {
     importTemplateFile(file);
@@ -911,17 +1385,34 @@ templateImportInput.addEventListener("change", () => {
   templateImportInput.value = "";
 });
 
-document.getElementById("generate-copy").addEventListener("click", () => updateOutputs(true));
-document.getElementById("download-svg").addEventListener("click", exportSvg);
-document.getElementById("download-png").addEventListener("click", exportPng);
-document.getElementById("generate-ai-image").addEventListener("click", generateAiImage);
-document.getElementById("sync-ai-prompt").addEventListener("click", () => syncImagePrompt(true));
-document.getElementById("download-ai-image").addEventListener("click", downloadAiImage);
-document.getElementById("save-template").addEventListener("click", saveTemplate);
-document.getElementById("load-template").addEventListener("click", loadTemplate);
-document.getElementById("delete-template").addEventListener("click", deleteTemplate);
-document.getElementById("export-template").addEventListener("click", exportTemplate);
-document.getElementById("import-template").addEventListener("click", () => templateImportInput.click());
+generateAiFieldsButton.addEventListener("click", generateAiFields);
+downloadPngButton.addEventListener("click", downloadCurrentImage);
+generateAiImageButton.addEventListener("click", generateAiImage);
+aiResultSlots.forEach((slot, index) => {
+  slot.addEventListener("click", () => {
+    selectAiImage(index);
+    openImageLightbox(index);
+  });
+  slot.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      selectAiImage(index);
+      openImageLightbox(index);
+    }
+  });
+});
+aiResultDownloadButtons.forEach((button, index) => {
+  button.addEventListener("click", () => downloadAiImageAt(index));
+});
+lightboxCloseTriggers.forEach((trigger) => {
+  trigger.addEventListener("click", closeImageLightbox);
+});
+lightboxDownloadButton?.addEventListener("click", () => downloadAiImageAt(state.selectedAiImageIndex));
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && imageLightbox && !imageLightbox.hidden) {
+    closeImageLightbox();
+  }
+});
 
 renderTemplateOptions();
 restoreDraft();

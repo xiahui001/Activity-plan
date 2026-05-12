@@ -528,6 +528,77 @@ async function generateActivityFields(request, response) {
   }
 }
 
+async function refineImagePrompt(request, response) {
+  if (!requireArkKey(response)) {
+    return;
+  }
+
+  let payload;
+  try {
+    payload = await readJsonBody(request);
+  } catch {
+    json(response, 400, { error: "请求体不是有效 JSON。" });
+    return;
+  }
+
+  const basePrompt = String(payload.prompt || "").replace(/\s+/g, " ").trim().slice(0, 3600);
+  if (!basePrompt) {
+    json(response, 400, { error: "缺少 prompt。" });
+    return;
+  }
+
+  const fields = payload.fields && typeof payload.fields === "object" ? payload.fields : {};
+  const userFields = {
+    title: cleanTextField(fields.title, "", 80),
+    subtitle: cleanTextField(fields.subtitle, "", 120),
+    date: cleanTextField(fields.date, "", 60),
+    location: cleanTextField(fields.location, "", 120),
+    highlights: cleanTextField(fields.highlights, "", 180),
+    theme: cleanTextField(fields.theme, "", 80),
+    visualKeywords: cleanTextField(fields.visualKeywords, "", 180),
+    brandName: cleanTextField(fields.brandName, "", 80),
+    posterTypeLabel: cleanTextField(fields.posterTypeLabel, "", 60),
+    orientation: cleanTextField(fields.orientation, "", 40),
+    imageResolution: cleanTextField(fields.imageResolution, "", 20),
+    titleFont: cleanTextField(fields.titleFont, "", 80),
+    subtitleFont: cleanTextField(fields.subtitleFont, "", 80),
+    qrEnabled: Boolean(fields.qrEnabled),
+  };
+
+  const messages = [
+    {
+      role: "system",
+      content:
+        "你是商业活动海报的资深 Art Director 和图像模型 Prompt Engineer。你负责把用户表单和本地固定提示词整理成专业、完整、可直接用于生图模型的中文 prompt。只输出 JSON，不要 Markdown，不要解释。",
+    },
+    {
+      role: "user",
+      content: [
+        "请把下面的表单信息和基础 prompt 重写成一条专业生图 prompt。",
+        "硬性要求：不得丢失、改写或虚构用户填写的关键信息，尤其是活动标题、日期、地点、品牌名、副标题；日期和地点必须原样保留。",
+        "文字安全区要求：所有文字必须在画面内侧安全区，不得贴边、不得裁切、不得超出画布。",
+        "主标题位置：主标题必须位于顶部安全区内，距离上边缘至少 10%-14%，不要贴顶，不要盖住人物脸部、产品主体或关键场景。",
+        "日期地点位置：日期和地点必须放在底部信息栏或左下角底部安全区，距离下边缘至少 8%-12%，不要放在画面中部，不要使用巨大 @ 符号或巨大定位图标。",
+        "输出应包含：画面主体、场景、构图、光线、材质、色彩、文字层级、文字安全区、负面约束、4K/尺寸信息。",
+        `用户表单：${JSON.stringify(userFields, null, 2)}`,
+        `基础 prompt：${basePrompt}`,
+        "输出 JSON 格式：{\"prompt\":\"...\"}",
+      ].join("\n"),
+    },
+  ];
+
+  try {
+    const content = await callArkChat(messages);
+    const result = parseJsonContent(content);
+    const refinedPrompt = cleanTextField(result.prompt, basePrompt, 3600);
+    json(response, 200, { prompt: refinedPrompt });
+  } catch (error) {
+    json(response, 500, {
+      error: `专业 prompt 整理失败：${String(error.message || error)}`,
+    });
+  }
+}
+
 function normalizeImageSize(value) {
   const size = String(value || "").trim();
   if (!size) {
@@ -3361,6 +3432,11 @@ const server = createServer(async (request, response) => {
 
   if (request.method === "POST" && request.url === "/api/generate-image") {
     await generateImage(request, response);
+    return;
+  }
+
+  if (request.method === "POST" && request.url === "/api/refine-image-prompt") {
+    await refineImagePrompt(request, response);
     return;
   }
 

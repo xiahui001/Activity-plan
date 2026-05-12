@@ -49,6 +49,21 @@
               <input id="client-industry" value="美业大健康品牌" />
             </label>
             <label>
+              <span>活动主 KV / 主视觉图</span>
+              <input id="key-visual-reference" type="file" accept="image/*" />
+              <div class="file-hint">可上传海报助手生成的主视觉，用于封面和整体视觉方向。</div>
+            </label>
+            <div class="field-row">
+              <label>
+                <span>活动主题</span>
+                <input id="event-title" value="年度品牌招商峰会" />
+              </label>
+              <label>
+                <span>副标题</span>
+                <input id="event-subtitle" value="品牌势能提升与招商转化活动方案" />
+              </label>
+            </div>
+            <label>
               <span>活动目的</span>
               <textarea id="event-objective" rows="4">提升品牌势能，完成招商转化，增强私域客户信任，并通过现场内容形成朋友圈传播。</textarea>
             </label>
@@ -60,6 +75,20 @@
               <span>活动主题</span>
               <select id="activity-theme-option"></select>
               <input id="theme-direction" class="conditional-input" value="年度品牌招商峰会" />
+            </label>
+            <label>
+              <span>方案风格</span>
+              <select id="proposal-style">
+                <option value="自动判断">自动判断</option>
+                <option value="高端商务型">高端商务型</option>
+                <option value="创意爆点型">创意爆点型</option>
+                <option value="务实落地型">务实落地型</option>
+                <option value="竞标提案型">竞标提案型</option>
+                <option value="品牌营销型">品牌营销型</option>
+                <option value="稳重政企型">稳重政企型</option>
+                <option value="__custom__">其他</option>
+              </select>
+              <input id="proposal-style-custom" class="conditional-input" value="银色科技感，克制高级，突出舞美搭建落地能力" />
             </label>
             <div class="field-row">
               <label>
@@ -96,9 +125,34 @@
               <input id="venue-type" value="室内会议厅 + 签到展示区 + 洽谈区" />
             </label>
             <label>
-              <span>活动执行</span>
-              <textarea id="activity-execution" rows="4">前期完成主题视觉、邀约物料、现场搭建图和执行排期；活动当天完成签到接待、舞台控场、产品体验、签约转化和摄影摄像记录；活动后输出复盘素材和二次传播内容。</textarea>
+              <span>上传场地图</span>
+              <input id="venue-map-reference" type="file" accept="image/*" />
+              <div class="file-hint">用于区域规划、动线设计和搭建方案页。</div>
             </label>
+            <div class="execution-module">
+              <div class="module-head">
+                <span>活动执行模块</span>
+                <strong>按生产执行拆分</strong>
+              </div>
+              <label>
+                <span>一天执行流程</span>
+                <textarea id="execution-flow" rows="3">前期完成主题视觉、邀约物料、现场搭建图和执行排期；活动当天完成签到接待、舞台控场、产品体验、签约转化；活动后输出复盘素材和二次传播内容。</textarea>
+              </label>
+              <label>
+                <span>演出 / 环节节点</span>
+                <textarea id="execution-program" rows="3">开场签到、主持开场、品牌主讲、产品体验、互动抽奖、签约仪式、合影留念。</textarea>
+              </label>
+              <div class="field-row">
+                <label>
+                  <span>拍摄安排</span>
+                  <textarea id="execution-shooting" rows="3">主视觉打卡、领导嘉宾、签约仪式、观众互动、现场全景、朋友圈传播素材。</textarea>
+                </label>
+                <label>
+                  <span>人员 / 运营安排</span>
+                  <textarea id="execution-operation" rows="3">项目统筹、舞台监督、搭建负责人、签到接待、摄影摄像、物料管理、应急巡场。</textarea>
+                </label>
+              </div>
+            </div>
           </section>
 
           <section>
@@ -128,18 +182,6 @@
                   <option value="需要">需要</option>
                   <option value="不需要">不需要</option>
                   <option value="待定">待定</option>
-                </select>
-              </label>
-              <label>
-                <span>提案风格</span>
-                <select id="proposal-style">
-                  <option value="自动判断">自动判断</option>
-                  <option value="高端商务型">高端商务型</option>
-                  <option value="创意爆点型">创意爆点型</option>
-                  <option value="务实落地型">务实落地型</option>
-                  <option value="竞标提案型">竞标提案型</option>
-                  <option value="品牌营销型">品牌营销型</option>
-                  <option value="稳重政企型">稳重政企型</option>
                 </select>
               </label>
             </div>
@@ -174,6 +216,14 @@
             <label class="checkbox-line">
               <input id="generate-images" type="checkbox" checked />
               <span>完整 PPT 生成全部配图</span>
+            </label>
+            <label class="checkbox-line">
+              <input id="generate-build-plan" type="checkbox" />
+              <span>生成活动搭建方案</span>
+            </label>
+            <label class="checkbox-line">
+              <input id="generate-runbook-plan" type="checkbox" />
+              <span>生成活动统筹方案</span>
             </label>
             <div id="workflow-stage" class="workflow-note">先草稿，后完整 PPT。</div>
             <div id="generation-progress" class="progress-panel" hidden>

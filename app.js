@@ -390,10 +390,12 @@ function buildPrompt(data) {
     ? "二维码要求：右下角必须预留真实二维码覆盖区，不要生成假的二维码图案；请围绕该区域设计与主色调、搭配色系一致的底托、发光边框、角标或信息框，底部标签为“扫码报名”。"
     : "二维码要求：本张海报不需要二维码，不要预留二维码区域，不要生成二维码图案，也不要出现“扫码报名”等扫码文案。";
   const layoutPrompt = data.qrEnabled
-    ? "版式要求：大标题强冲击，日期和地点清晰，右下角预留二维码位置。所有文字、Logo、二维码都必须完整位于画面内，四周保留 8%-10% 安全边距，不要贴边，不要裁切。"
-    : "版式要求：大标题强冲击，日期和地点清晰；画面保持完整留白和视觉呼吸感。所有文字、Logo 都必须完整位于画面内，四周保留 8%-10% 安全边距，不要贴边，不要裁切。";
+    ? "版式要求：大标题强冲击，日期和地点清晰，右下角预留二维码位置。所有文字、Logo、二维码都必须完整位于画面内，四周保留 12%-14% 文字安全区，不要贴边，不要裁切。"
+    : "版式要求：大标题强冲击，日期和地点清晰；画面保持完整留白和视觉呼吸感。所有文字、Logo 都必须完整位于画面内，四周保留 12%-14% 文字安全区，不要贴边，不要裁切。";
+  const titlePlacementPrompt =
+    "主标题排版：主标题必须放在顶部安全区内，距离上边缘至少 10%-14%，不要贴顶，不要超出画布，不要裁切字形；副标题紧跟主标题下方但保持清晰间距，不要覆盖人物脸部、产品主体或关键场景。";
   const infoPlacementPrompt =
-    "日期地点排版：日期和地点必须作为底部信息栏处理，放在画面左下角或底部左侧安全区，用小字号横向信息条呈现；不要放在画面中部，不要放在主标题正下方中央，不要使用 @ 符号或巨大定位图标，不要压住主视觉、人物、产品、地标或活动场景主体。";
+    "日期地点排版：日期和地点必须作为底部信息栏处理，放在画面左下角或底部左侧安全区，距离下边缘至少 8%-12%，用小字号横向信息条呈现；不要放在画面中部，不要放在主标题正下方中央，不要使用 @ 符号或巨大定位图标，不要压住主视觉、人物、产品、地标或活动场景主体。";
   return [
     `请生成一张中文活动视觉图，画面类型为${data.posterTypeLabel}，画面方向为${orientationLabels[data.size]}，输出尺寸 ${imageSize}。`,
     data.posterTypePrompt,
@@ -406,6 +408,7 @@ function buildPrompt(data) {
     `视觉方向：${data.theme}，主色调 ${data.brandPrimary}，搭配色系 ${data.brandAccent}。`,
     `画面关键词：${data.visualKeywords}。`,
     qrPrompt,
+    titlePlacementPrompt,
     infoPlacementPrompt,
     layoutPrompt,
     `设计方向：${data.highlights}。`,
@@ -1044,6 +1047,51 @@ async function composeQrOverlay(baseImageUrl, data) {
   return canvas.toDataURL("image/png");
 }
 
+async function refineImagePrompt(prompt, data) {
+  try {
+    const response = await fetch("/api/refine-image-prompt", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        prompt,
+        fields: {
+          title: data.title,
+          subtitle: data.subtitle,
+          date: data.date,
+          location: data.location,
+          highlights: data.highlights,
+          theme: data.theme,
+          visualKeywords: data.visualKeywords,
+          brandName: data.brandName,
+          posterTypeLabel: data.posterTypeLabel,
+          orientation: orientationLabels[data.size],
+          imageResolution: data.imageResolution || "4K",
+          titleFont: data.titleFont,
+          subtitleFont: data.subtitleFont,
+          qrEnabled: data.qrEnabled,
+        },
+      }),
+    });
+
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || !payload.prompt) {
+      return {
+        prompt,
+        warning: payload.error || "专业 prompt 整理失败，已改用本地固定 prompt 继续生成。",
+      };
+    }
+
+    return { prompt: payload.prompt };
+  } catch {
+    return {
+      prompt,
+      warning: "专业 prompt 整理失败，已改用本地固定 prompt 继续生成。",
+    };
+  }
+}
+
 async function requestAiImage(prompt, data, index) {
   const response = await fetch("/api/generate-image", {
     method: "POST",
@@ -1100,10 +1148,19 @@ async function generateAiImage() {
   document.querySelector(".ai-result-panel")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
 
   try {
+    const refinedPrompt = await refineImagePrompt(prompt, data);
+    if (refinedPrompt.warning) {
+      setImageProgress(0, POSTER_IMAGE_COUNT, refinedPrompt.warning);
+    } else {
+      setImageProgress(0, POSTER_IMAGE_COUNT, "专业 prompt 已整理完成，正在提交真实生图请求。");
+      imagePromptInput.value = refinedPrompt.prompt;
+      state.lastAutoPrompt = refinedPrompt.prompt;
+    }
+
     let settledCount = 0;
     const tasks = Array.from({ length: POSTER_IMAGE_COUNT }, async (_, index) => {
       try {
-        const imageUrl = await requestAiImage(prompt, data, index);
+        const imageUrl = await requestAiImage(refinedPrompt.prompt, data, index);
         return { index, imageUrl };
       } catch (error) {
         return { index, error };

@@ -234,10 +234,76 @@ test("poster prompt keeps date and location in a bottom information bar", async 
   const app = await startAppServer(ark.url);
   try {
     const appJs = await fetch(`${app.baseUrl}/app.js`).then((res) => res.text());
+    assert.match(appJs, /文字安全区/);
+    assert.match(appJs, /顶部安全区/);
+    assert.match(appJs, /不要贴顶/);
+    assert.match(appJs, /不要裁切/);
     assert.match(appJs, /底部信息栏/);
     assert.match(appJs, /左下角/);
     assert.match(appJs, /不要放在画面中部/);
     assert.match(appJs, /不要压住主视觉/);
+  } finally {
+    await app.close();
+    await ark.close();
+  }
+});
+
+test("image prompt refinement endpoint preserves user information and text placement rules", async () => {
+  const ark = await startMockArk({
+    chatContent: () => JSON.stringify({
+      prompt:
+        "专业海报 prompt：老年马拉松，2026.05.18，上海滨江绿地 A 区，Urban Weekends，顶部安全区内放标题，底部信息栏放日期地点。",
+    }),
+  });
+  const app = await startAppServer(ark.url);
+  try {
+    const response = await fetch(`${app.baseUrl}/api/refine-image-prompt`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        prompt: "老年马拉松 活动海报",
+        fields: {
+          title: "老年马拉松",
+          subtitle: "岁月是勋章，步履不停歇",
+          date: "2026.05.18",
+          location: "上海滨江绿地 A 区",
+          brandName: "Urban Weekends",
+          posterTypeLabel: "主 KV",
+        },
+      }),
+    });
+
+    assert.equal(response.status, 200);
+    const payload = await response.json();
+    assert.match(payload.prompt, /老年马拉松/);
+    assert.match(payload.prompt, /2026\.05\.18/);
+    assert.match(payload.prompt, /上海滨江绿地 A 区/);
+    assert.match(payload.prompt, /顶部安全区/);
+    assert.match(payload.prompt, /底部信息栏/);
+
+    assert.equal(ark.calls.chat.length, 1);
+    const chatRequest = JSON.stringify(ark.calls.chat[0]);
+    assert.match(chatRequest, /不得丢失/);
+    assert.match(chatRequest, /老年马拉松/);
+    assert.match(chatRequest, /2026\.05\.18/);
+    assert.match(chatRequest, /上海滨江绿地 A 区/);
+    assert.match(chatRequest, /顶部安全区/);
+    assert.match(chatRequest, /底部信息栏/);
+  } finally {
+    await app.close();
+    await ark.close();
+  }
+});
+
+test("poster image generation refines the assembled prompt before image requests", async () => {
+  const ark = await startMockArk();
+  const app = await startAppServer(ark.url);
+  try {
+    const appJs = await fetch(`${app.baseUrl}/app.js`).then((res) => res.text());
+    assert.match(appJs, /async function refineImagePrompt/);
+    assert.match(appJs, /\/api\/refine-image-prompt/);
+    assert.match(appJs, /const refinedPrompt = await refineImagePrompt\(prompt, data\)/);
+    assert.match(appJs, /requestAiImage\(refinedPrompt\.prompt, data, index\)/);
   } finally {
     await app.close();
     await ark.close();

@@ -9,7 +9,11 @@ const exportButton = document.getElementById("export-ppt");
 const include3DInput = document.getElementById("include-3d");
 const threeDFieldsEl = document.getElementById("three-d-fields");
 const threeDReferenceInput = document.getElementById("three-d-reference");
+const keyVisualReferenceInput = document.getElementById("key-visual-reference");
+const venueMapReferenceInput = document.getElementById("venue-map-reference");
 const generateImagesInput = document.getElementById("generate-images");
+const generateBuildPlanInput = document.getElementById("generate-build-plan");
+const generateRunbookPlanInput = document.getElementById("generate-runbook-plan");
 const templatePresetSelect = document.getElementById("template-preset");
 const presetSummaryEl = document.getElementById("preset-summary");
 const activityAccountSelect = document.getElementById("activity-account");
@@ -182,6 +186,18 @@ function getChecked(id) {
   return Boolean(document.getElementById(id)?.checked);
 }
 
+function getConditionalValue(selectId, inputId) {
+  const select = document.getElementById(selectId);
+  const input = document.getElementById(inputId);
+  if (!select) {
+    return input?.value?.trim() || "";
+  }
+  if (select.value === CUSTOM_OPTION_VALUE) {
+    return input?.value?.trim() || "";
+  }
+  return select.value.trim();
+}
+
 function syncThreeDFields() {
   if (!include3DInput || !threeDFieldsEl) {
     return;
@@ -253,8 +269,10 @@ function applyActivityDefaults() {
   const preset = getSelectedActivityPrompt();
   const fieldMap = {
     "client-industry": preset.clientIndustry,
+    "event-title": preset.themeDirection,
+    "event-subtitle": `${preset.name}活动策划与落地执行方案`,
     "event-objective": preset.eventObjective,
-    "activity-execution": preset.activityExecution,
+    "execution-flow": preset.activityExecution,
   };
 
   Object.entries(fieldMap).forEach(([id, value]) => {
@@ -281,6 +299,30 @@ function readFileAsDataUrl(file) {
     reader.onerror = () => reject(new Error("3D 参考图读取失败。"));
     reader.readAsDataURL(file);
   });
+}
+
+async function readOptionalImageFile(input, label) {
+  if (!input?.files?.[0]) {
+    return null;
+  }
+  const file = input.files[0];
+  return {
+    name: file.name,
+    type: file.type,
+    size: file.size,
+    label,
+    dataUrl: await readFileAsDataUrl(file),
+  };
+}
+
+function buildActivityExecutionSummary() {
+  const parts = [
+    ["一天执行流程", getValue("execution-flow")],
+    ["演出/环节节点", getValue("execution-program")],
+    ["拍摄安排", getValue("execution-shooting")],
+    ["人员/运营安排", getValue("execution-operation")],
+  ].filter(([, value]) => value);
+  return parts.map(([label, value]) => `${label}：${value}`).join("；");
 }
 
 function getSelectedPreset() {
@@ -344,6 +386,8 @@ async function getInput(workflowStage = "full", reviewedDraft = null) {
   const include3D = getChecked("include-3d");
   const selectedPreset = getSelectedPreset();
   const selectedActivityPrompt = getSelectedActivityPrompt();
+  const keyVisualReferenceImage = await readOptionalImageFile(keyVisualReferenceInput, "活动主KV/主视觉图");
+  const venueMapReferenceImage = await readOptionalImageFile(venueMapReferenceInput, "场地图/场地平面图");
   let threeDReferenceImage = null;
 
   if (include3D && threeDReferenceInput?.files?.[0]) {
@@ -381,22 +425,44 @@ async function getInput(workflowStage = "full", reviewedDraft = null) {
     activityPromptPreset: selectedActivityPrompt,
     activityAccount: getValue("activity-account"),
     clientIndustry: getValue("client-industry"),
-    themeDirection: getValue("theme-direction"),
+    eventTitle: getValue("event-title"),
+    eventSubtitle: getValue("event-subtitle"),
+    themeDirection: getValue("event-title") || getValue("theme-direction"),
+    themeOption: getValue("theme-direction"),
+    keyVisual: {
+      enabled: Boolean(keyVisualReferenceImage),
+      referenceImage: keyVisualReferenceImage,
+    },
     eventObjective: getValue("event-objective"),
     eventTime: getValue("event-time"),
     eventLocation: getValue("event-location"),
     activityForm: getValue("activity-form"),
-    activityExecution: getValue("activity-execution"),
+    activityExecution: buildActivityExecutionSummary(),
+    executionModules: {
+      flow: getValue("execution-flow"),
+      program: getValue("execution-program"),
+      shooting: getValue("execution-shooting"),
+      operation: getValue("execution-operation"),
+    },
     budgetRange: getValue("budget-range"),
     targetAudience: getValue("target-audience"),
     headcount: getValue("headcount"),
     venueType: getValue("venue-type"),
+    venueMap: {
+      enabled: Boolean(venueMapReferenceImage),
+      referenceImage: venueMapReferenceImage,
+    },
     needStage: getValue("need-stage"),
     needDisplay: getValue("need-display"),
     needPromotion: getValue("need-promotion"),
-    proposalStyle: getValue("proposal-style"),
+    proposalStyle: getConditionalValue("proposal-style", "proposal-style-custom"),
     companyCapability: getValue("company-capability"),
     extraRequirements: getValue("extra-requirements"),
+    outputOptions: {
+      generateAllImages: getChecked("generate-images"),
+      includeBuildPlan: getChecked("generate-build-plan"),
+      includeRunbookPlan: getChecked("generate-runbook-plan"),
+    },
     threeD: {
       enabled: include3D,
       brief: getValue("three-d-brief"),
@@ -494,7 +560,7 @@ function escapeHtml(value) {
 function getSlideImageSrc(slide) {
   const threeDImageSrc =
     slide.threeDImageUrl || (slide.threeDImageBase64 ? `data:image/png;base64,${slide.threeDImageBase64}` : "");
-  return threeDImageSrc || slide.imageUrl || (slide.imageBase64 ? `data:image/png;base64,${slide.imageBase64}` : "");
+  return threeDImageSrc || (slide.imageBase64 ? `data:image/png;base64,${slide.imageBase64}` : "") || slide.imageUrl || "";
 }
 
 function getSlidePromptText(slide) {
@@ -686,6 +752,8 @@ function setWorkflowState(nextState) {
   confirmButton.disabled = busy || !draftProposal || workflowState === "full-ready";
   exportButton.disabled = busy || !currentProposal;
   generateImagesInput.disabled = busy;
+  generateBuildPlanInput.disabled = busy;
+  generateRunbookPlanInput.disabled = busy;
   templatePresetSelect.disabled = busy;
 
   generateButton.textContent = workflowState === "draft-loading" ? "生成中..." : "生成草稿";
@@ -739,14 +807,16 @@ async function generateFullProposal() {
   deckTitleEl.textContent = "正在生成完整方案...";
   deckMetaEl.textContent = "生成完整 PPT 中。";
   workflowStageEl.textContent = "完整 PPT 生成中。";
-  setStatus(getChecked("generate-images") ? "生成 PPT 和图片中" : "生成 PPT 中", "loading");
+  const shouldGenerateImageJob =
+    getChecked("generate-images") || getChecked("generate-build-plan") || getChecked("generate-runbook-plan");
+  setStatus(shouldGenerateImageJob ? "生成 PPT 和图片中" : "生成 PPT 中", "loading");
   setWorkflowState("full-loading");
 
   try {
     const input = await getInput("full", draftProposal);
     const payload = await startProposalJob(input, {
       stage: "final",
-      generateImages: getChecked("generate-images"),
+      generateImages: shouldGenerateImageJob,
       label: "正式稿生成进度",
     });
 
@@ -810,12 +880,19 @@ activityAccountSelect?.addEventListener("change", handleActivityAccountChange);
 include3DInput?.addEventListener("change", syncThreeDFields);
 document.getElementById("activity-theme-option")?.addEventListener("change", () => {
   syncConditionalSelect("activity-theme-option", "theme-direction");
+  const eventTitle = document.getElementById("event-title");
+  if (eventTitle) {
+    eventTitle.value = getValue("theme-direction");
+  }
 });
 document.getElementById("activity-object-option")?.addEventListener("change", () => {
   syncConditionalSelect("activity-object-option", "target-audience");
 });
 document.getElementById("activity-form-option")?.addEventListener("change", () => {
   syncConditionalSelect("activity-form-option", "activity-form");
+});
+document.getElementById("proposal-style")?.addEventListener("change", () => {
+  syncConditionalSelect("proposal-style", "proposal-style-custom");
 });
 
 form.addEventListener("submit", (event) => {
@@ -827,6 +904,7 @@ hydrateTemplateSelect();
 refreshWorkflowCopy();
 applyActivityDefaults();
 syncThreeDFields();
+syncConditionalSelect("proposal-style", "proposal-style-custom");
 updateTemplateSummary();
 updateActivityPromptSummary();
 setWorkflowState("idle");

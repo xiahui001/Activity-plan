@@ -1162,6 +1162,16 @@ textarea {
   line-height: 1.8;
 }
 
+.auto-resize-textarea {
+  overflow: hidden;
+  resize: none;
+}
+
+.visual-keywords-field {
+  min-height: 178px;
+  line-height: 1.72;
+}
+
 select {
   appearance: none;
   min-height: 68px;

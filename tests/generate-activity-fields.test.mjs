@@ -177,6 +177,31 @@ test("served poster form supports poster type, font selection, and removes redun
   }
 });
 
+test("visual keywords field is a 500 character adaptive textarea", async () => {
+  const ark = await startMockArk();
+  const app = await startAppServer(ark.url);
+  try {
+    const html = await fetch(`${app.baseUrl}/`).then((res) => res.text());
+    const css = await fetch(`${app.baseUrl}/styles.css`).then((res) => res.text());
+    const appJs = await fetch(`${app.baseUrl}/app.js`).then((res) => res.text());
+
+    const visualKeywordsField = html.match(/<textarea[\s\S]*?id="visual-keywords"[\s\S]*?<\/textarea>/)?.[0] || "";
+    assert.ok(visualKeywordsField);
+    assert.match(visualKeywordsField, /maxlength="500"/);
+    assert.match(visualKeywordsField, /auto-resize-textarea/);
+    assert.match(visualKeywordsField, /visual-keywords-field/);
+    assert.doesNotMatch(html, /<input[^>]+id="visual-keywords"/);
+
+    assert.match(css, /\.visual-keywords-field/);
+    assert.match(css, /overflow:\s*hidden/);
+    assert.match(appJs, /resizeAutoTextareas/);
+    assert.match(appJs, /scrollHeight/);
+  } finally {
+    await app.close();
+    await ark.close();
+  }
+});
+
 test("poster image generation is configured for three parallel real model results", async () => {
   const ark = await startMockArk();
   const app = await startAppServer(ark.url);

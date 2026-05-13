@@ -266,6 +266,19 @@ function getFormData() {
 
 function setInputValue(element, value) {
   element.value = value || "";
+  resizeTextarea(element);
+}
+
+function resizeTextarea(element) {
+  if (!element || !element.classList?.contains("auto-resize-textarea")) {
+    return;
+  }
+  element.style.height = "auto";
+  element.style.height = `${element.scrollHeight}px`;
+}
+
+function resizeAutoTextareas() {
+  document.querySelectorAll(".auto-resize-textarea").forEach(resizeTextarea);
 }
 
 function syncColorPicker(input, shell) {
@@ -575,6 +588,7 @@ async function generateAiFields() {
 }
 
 function refreshAll(syncPrompt = false, explicitPrompt = "") {
+  resizeAutoTextareas();
   syncColorPickers();
   updatePreview();
   updateOutputs(syncPrompt, explicitPrompt);
@@ -1409,6 +1423,7 @@ form.addEventListener("input", (event) => {
   if (event.target.type === "file") {
     return;
   }
+  resizeTextarea(event.target);
   refreshAll();
 });
 
